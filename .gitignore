@@ -15,6 +15,7 @@ venv/
 .venv/
 
 # Environment / IDEs
+.env
 .idea/
 .cursor/
 .windsurf/
