@@ -13,6 +13,8 @@ eggs/
 venv/
 .env/
 .venv/
+.venv312/
+cuda-install.log
 
 # Environment / IDEs
 .env
