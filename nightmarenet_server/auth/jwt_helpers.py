@@ -21,6 +21,7 @@ def create_access_token(
     org_id: Optional[str] = None,
     role: str = "member",
     expires_in: int = 3600,
+    token_type: str = "access",
 ) -> str:
     """Create a signed JWT access token."""
     if jwt is None:
@@ -32,10 +33,23 @@ def create_access_token(
         "iat": now,
         "exp": now + expires_in,
         "role": role,
+        "typ": token_type,
     }
     if org_id:
         payload["org_id"] = org_id
     return jwt.encode(payload, get_secret(), algorithm="HS256")
+
+
+def create_refresh_token(
+    subject: str,
+    expires_in: int = 60 * 60 * 24 * 30,
+) -> str:
+    """Create a long-lived refresh token (default 30 days)."""
+    return create_access_token(
+        subject=subject,
+        expires_in=expires_in,
+        token_type="refresh",
+    )
 
 
 def decode_access_token(token: str) -> Dict[str, Any]:
