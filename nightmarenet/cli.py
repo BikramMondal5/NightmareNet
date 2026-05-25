@@ -59,29 +59,76 @@ def cmd_train(args: argparse.Namespace) -> int:
 
 
 def cmd_evaluate(args: argparse.Namespace) -> int:
-    """Evaluate text robustness via distortion API logic."""
+    """Evaluate text robustness via distortion API logic.
+
+    When ``--json`` is supplied, emits a single JSON object on stdout suitable
+    for CI consumption (e.g. the ``nightmarenet-robustness-check`` composite
+    GitHub Action) containing per-strength similarity scores plus an aggregate
+    ``robustness_score`` in ``[0, 1]``.
+    """
     from nightmarenet.distortions.registry import get_registry
 
-    print("NightmareNet Evaluation")
-    print(f"  Strengths: {args.strengths}")
-    print()
+    json_only = bool(getattr(args, "json", False))
+    dataset = getattr(args, "dataset", None) or "sst2"
+    model = getattr(args, "model", None) or ""
+
+    if not json_only:
+        print("NightmareNet Evaluation")
+        print(f"  Model:     {model}")
+        print(f"  Dataset:   {dataset}")
+        print(f"  Strengths: {args.strengths}")
+        print()
 
     registry = get_registry()
     text = args.text or "The quick brown fox jumps over the lazy dog."
     strengths = [float(s) for s in args.strengths.split(",")]
-    results = []
+
+    def _char_similarity(a: str, b: str) -> float:
+        if not a and not b:
+            return 1.0
+        if not a or not b:
+            return 0.0
+        matches = sum(1 for ca, cb in zip(a, b) if ca == cb)
+        return matches / max(len(a), len(b))
+
+    per_strength = []
+    dream_sims = []
+    nightmare_sims = []
     for strength in strengths:
         dream_out = registry.apply("dream", text, strength=strength, seed=42)
         nightmare_out = registry.apply("nightmare", text, strength=strength, seed=42)
-        results.append(
+        dream_sim = round(_char_similarity(text, dream_out), 4)
+        nightmare_sim = round(_char_similarity(text, nightmare_out), 4)
+        dream_sims.append(dream_sim)
+        nightmare_sims.append(nightmare_sim)
+        per_strength.append(
             {
                 "strength": strength,
+                "dream_similarity": dream_sim,
+                "nightmare_similarity": nightmare_sim,
                 "dream_sample": dream_out[:200],
                 "nightmare_sample": nightmare_out[:200],
             }
         )
 
-    print(json.dumps(results, indent=2))
+    avg_dream = sum(dream_sims) / max(len(dream_sims), 1)
+    avg_nightmare = sum(nightmare_sims) / max(len(nightmare_sims), 1)
+    robustness_score = round((avg_dream + avg_nightmare) / 2.0, 4)
+
+    payload = {
+        "model": model,
+        "dataset": dataset,
+        "robustness_score": robustness_score,
+        "avg_dream_similarity": round(avg_dream, 4),
+        "avg_nightmare_similarity": round(avg_nightmare, 4),
+        "strengths": per_strength,
+    }
+
+    if json_only:
+        sys.stdout.write(json.dumps(payload))
+        sys.stdout.write("\n")
+    else:
+        print(json.dumps(payload, indent=2))
     return 0
 
 
@@ -129,10 +176,18 @@ def build_parser() -> argparse.ArgumentParser:
 
     # evaluate
     eval_parser = subparsers.add_parser("evaluate", help="Evaluate model robustness")
-    eval_parser.add_argument("--model", required=True, help="Model name or path")
+    eval_parser.add_argument("--model", required=False, default="", help="Model name or path")
     eval_parser.add_argument("--text", help="Text to evaluate")
     eval_parser.add_argument(
         "--strengths", default="0.1,0.3,0.5,0.7,0.9", help="Comma-separated strengths"
+    )
+    eval_parser.add_argument(
+        "--dataset", default="sst2", help="Dataset name (informational, default: sst2)"
+    )
+    eval_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit a single JSON object on stdout (for CI consumption)",
     )
 
     # benchmark
