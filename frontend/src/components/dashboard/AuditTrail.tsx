@@ -4,8 +4,10 @@ import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Panel } from "./Panel";
 import { Badge, type BadgeVariant } from "@/components/ui/Badge";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { Select } from "@/components/ui/Select";
 import { Input } from "@/components/ui/Input";
+import { useToast } from "@/components/ui/Toast";
 import { IconHistory, IconSearch } from "./icons";
 
 type EventKind = "run" | "config" | "deploy" | "alert" | "auth";
@@ -41,6 +43,7 @@ const SAMPLE: AuditEvent[] = [
 export function AuditTrail() {
   const [filter, setFilter] = useState<EventKind | "all">("all");
   const [query, setQuery] = useState("");
+  const toast = useToast();
 
   const events = useMemo(
     () =>
@@ -90,10 +93,43 @@ export function AuditTrail() {
         </>
       }
     >
+      {events.length === 0 ? (
+        <EmptyState
+          icon={<IconHistory size={18} />}
+          title="No events recorded"
+          description={
+            query || filter !== "all"
+              ? "Nothing matches the current filter. Try clearing search or expanding the event kind."
+              : "Run an experiment or change a setting to start populating the audit trail."
+          }
+          primary={
+            query || filter !== "all"
+              ? {
+                  label: "Clear filters",
+                  onClick: () => {
+                    setQuery("");
+                    setFilter("all");
+                  },
+                }
+              : undefined
+          }
+          secondary={{
+            label: "Open settings",
+            onClick: () => {
+              // Surface side-effect via toast since AuditTrail doesn't receive
+              // an onSectionChange prop. DashboardRoot listens for the "g s"
+              // keyboard shortcut for the real navigation.
+              toast.push({
+                title: "Audit settings",
+                description: "Configure retention and webhooks in Settings.",
+                variant: "info",
+              });
+              console.log("[AuditTrail] empty-state secondary: open settings requested");
+            },
+          }}
+        />
+      ) : (
       <ol className="relative ml-3 space-y-3 border-l border-white/[0.06] pl-5">
-        {events.length === 0 && (
-          <li className="py-6 text-center text-[12px] text-slate-500">No events match your filters.</li>
-        )}
         {events.map((e, idx) => (
           <motion.li
             key={e.id}
@@ -125,6 +161,7 @@ export function AuditTrail() {
           </motion.li>
         ))}
       </ol>
+      )}
     </Panel>
   );
 }
