@@ -11,20 +11,36 @@ Tracked through the `consumer-product-improvement` skill's *Analyze → Critique
 - **[shipped]** `AskNightmareDock` — floating-button context-aware copilot with per-section hints and 1-click next-step suggestions. Heuristic v1; LLM streaming endpoint is the next swap-in.
 - **[shipped]** `ToastProvider` wired globally — every palette/g-shortcut/action fires structured toast feedback (variant + duration).
 
+## Shipped this iteration (2026-05-27)
+
+- **[shipped]** `EmptyState` primitive — intelligent CTAs, constellation illustration, used in `ExperimentList` (0-runs) and `AuditTrail` (0-events).
+- **[shipped]** `SkeletonStatTile` / `SkeletonChart` / `SkeletonRows` — shape-matched loaders; `CommandCenter`, `LiveMetrics`, `ExperimentList` opt-in via `loading` prop.
+- **[shipped]** `RowActionsMenu` on `ExperimentList` rows — Compare / Re-run / Export / Open / Delete with toast feedback. `IconKebab` added to the icon set.
+- **[shipped]** Marketing → `/dashboard` text handoff — `frontend/src/lib/handoff.ts` persists demo input to `sessionStorage`; `DistortionPreview` prefills on mount and fires an info toast.
+- **[shipped]** `/api/v1/copilot/ask` SSE endpoint — heuristic by default, auto-upgrades to OpenAI / Anthropic / Azure OpenAI when keys are set. Unified `{answer, suggestions, model}` shape; `register_copilot_routes(app, limiter)` to share slowapi limiter.
+- **[shipped]** `askCopilot()` typed async generator in API client + `AskNightmareDock` wired to it — streaming with thinking cursor, "powered by" footer, abort-on-close, heuristic fallback on network failure.
+- **[shipped]** `/api/v1/badge/{score}.svg` + `.json` — shields.io-style robustness badge with 5-band color scale, `Cache-Control: max-age=300`. Embed section in `CIIntegration` panel with copy-to-clipboard HTML and Markdown snippets.
+- **[shipped]** `RunDetail` quick-re-run menu — Same / Strength × 1.2 / Strength × 0.8 / Switch to GPT-2 with inline config-diff preview.
+- **[shipped]** `WhatsNew` card — top-right of dashboard, build-SHA-gated, suppressed until onboarding is dismissed.
+- **[shipped]** OpenAPI documentation for copilot + badge endpoints.
+- **[shipped]** **Fixed tautological worker HEALTHCHECK** — real `healthcheck_worker.py` with TCP broker probe + Celery worker ping. 14 regression tests lock the behavior. (See `tasks/lessons.md` 2026-05-27.)
+
 ## Top of backlog (next iteration)
 
 | Rank | Opportunity | Persona | Effort | Notes |
 |-----:|-------------|---------|:------:|-------|
-| 1 | Intelligent empty states component | First-time user | S | Replace mock data with helpful CTAs when the user has 0 runs / 0 experiments. One component reused across panels. |
-| 2 | Theme toggle (light/dark) with persistence | Mobile / accessibility | M | Heavy dark design — needs careful palette inversion to preserve cyberpunk feel. |
-| 3 | Wire `AskNightmareDock` to a streaming `/api/v1/copilot` endpoint | All | M | Backend = Azure OpenAI / Anthropic with context = current section + recent runs JSON. |
-| 4 | Per-user palette command history sync | Power user | S | Currently localStorage; sync to `api_keys.last_used_at`-style server store when logged in. |
-| 5 | Inline action menus on `ExperimentList` rows | Power user | S | Right-click / overflow-button "Compare", "Re-run with…", "Export", "Delete". |
-| 6 | "What's new" overlay on first dashboard visit after a deploy | Daily user | S | Compare `BUILD_SHA` localStorage cookie vs current build; show changelog cards. |
-| 7 | Skeleton loaders matching final component shape | Mobile / slow network | S | Currently spinners; replace with shape-matched skeleton screens. |
-| 8 | Marketing home → `/dashboard` CTA with shared session storage for the example text | First-time user | S | Make the "Try it" button on the landing page carry the user's pasted text into the live dashboard. |
-| 9 | Quick re-run with mutated config | Power user | M | Hover any run → "Re-run with strength × 1.2" / "Re-run on GPT-2" — preset variations. |
-| 10 | Robustness badge widget for external README embeds | Growth | S | `<img src=".../badge/{repo}/robustness.svg">` like shields.io; viral surface. |
+| 1 | Theme toggle (light/dark) with persistence | Mobile / accessibility | M | Heavy dark design — needs careful palette inversion to preserve cyberpunk feel. |
+| 2 | Per-user palette command history sync | Power user | S | Currently localStorage; sync to `api_keys.last_used_at`-style server store when logged in. |
+| 3 | Wire `RowActionsMenu` actions to real endpoints | Power user | M | "Compare" → `/api/v1/experiments/compare`; "Re-run" → `/api/v1/pipeline/create` with mutated config; "Export" → JSON download. Currently they fire toasts and console.log. |
+| 4 | Wire `RunDetail` re-run-with-mutation to `/api/v1/pipeline/create` | Power user | S | Same as above — currently a toast + TODO comment. |
+| 5 | Real "What's new" changelog feed | Daily user | S | Currently three hardcoded bullets — drive from a JSON file or repo CHANGELOG.md. |
+| 6 | Live robustness-score endpoint for badge | Growth | M | Right now badge shows a passed-in score. Wire `/api/v1/badge/latest.svg` that pulls from the most recent run for an org/project. |
+| 7 | "View changelog" deep link from `WhatsNew` | Daily user | S | Currently disabled link; route to GitHub releases or in-app changelog modal. |
+| 8 | Inline-edit experiment names | Power user | S | Click-to-edit row title in `ExperimentList` with optimistic update + toast on save. |
+| 9 | Empty states across remaining panels (`RobustnessRadar`, `ModelComparison`, `BenchmarkSuite`) | First-time user | S | EmptyState primitive is built; just need to wire it. |
+| 10 | Mobile-responsive sidebar collapse | Mobile user | M | Below `md`, sidebar collapses to a bottom navbar or drawer. |
+| 11 | Voice mode for copilot dock | Wow / accessibility | M | Web Speech API push-to-talk → POST to existing `/api/v1/copilot/ask`. |
+| 12 | Personalized dashboard ordering | Daily user | M | Track section-visit counts in localStorage; reorder sidebar by frequency. |
 
 ## Deeper opportunities (research / experiment)
 
