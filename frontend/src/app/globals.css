@@ -290,6 +290,9 @@ body {
 .light .dot-matrix {
   background-image: radial-gradient(rgba(99, 102, 241, 0.12) 1px, transparent 1px);
 }
+
+/* Section divider — animated gradient line */
+.section-glow-line {
   height: 1px;
   background: linear-gradient(
     90deg,
