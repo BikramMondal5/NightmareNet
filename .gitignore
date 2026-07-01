@@ -47,6 +47,8 @@ tasks/lessons.md
 tasks/todo.md
 AGENTS.md
 frontend/AGENTS.md
+Prompt.md
+skills-lock.json
 
 # Node / Frontend
 node_modules/
@@ -91,3 +93,4 @@ plan-nightmareNet.prompt.md
 nightmarenet-overview.md
 Plan.md
 lint_output.txt
+skills-lock.json
