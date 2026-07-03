@@ -136,8 +136,9 @@ def cmd_evaluate(args: argparse.Namespace) -> int:
 
 def cmd_benchmark(args: argparse.Namespace) -> int:
     """Run standard robustness benchmarks and print reproducibility logs."""
-    from nightmarenet.evaluation.evaluator import Evaluator
     import yaml
+
+    from nightmarenet.evaluation.evaluator import Evaluator
 
     suite = args.suite
     model_name = args.model
@@ -164,8 +165,8 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
 
     print(f"Loading tokenizer and weights for '{model_name}'...")
     try:
-        from transformers import AutoModelForSequenceClassification, AutoTokenizer
         import torch
+        from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
         device = "cuda" if torch.cuda.is_available() else "cpu"
         tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -200,14 +201,17 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
     print("-----------------------------------\n")
 
     robustness_delta = float(results.get("robustness_delta", 0.0))
-    print(f"Verification Summary:")
+    print("Verification Summary:")
     print(f"  Achieved Robustness Delta: +{robustness_delta * 100:.2f}%")
-    print(f"  Target Paper Specification: +14.00%")
+    print("  Target Paper Specification: +14.00%")
 
     if robustness_delta >= 0.14:
         print("\n[SUCCESS] Metrics match or exceed canonical paper specifications!")
     else:
-        print("\n[WARNING] Benchmark completed, but metrics diverged below the target paper standard.")
+        print(
+            "\n[WARNING] Benchmark completed, but metrics diverged "
+            "below the target paper standard."
+        )
 
     return 0
 def cmd_distort(args: argparse.Namespace) -> int:
