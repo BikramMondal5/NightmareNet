@@ -72,7 +72,7 @@ def _evaluate_model_worker(
     registry = get_registry()
 
     start_time = time.time()
-    
+
     total_auc = 0.0
     results_by_distortion = {}
 
@@ -80,11 +80,12 @@ def _evaluate_model_worker(
         for dist_dict in distortions_data:
             distortion_type = dist_dict["type"]
             strengths = dist_dict["strengths"]
-            
+
             accuracies = []
             for strength in strengths:
-                def distortion_fn(text, _s=strength):
-                    return registry.apply(distortion_type, text, strength=_s, seed=42)
+                def distortion_fn(text, _s=strength, _dt=distortion_type):
+                    return registry.apply(_dt, text, strength=_s, seed=42)
+
 
                 distorted = ds.map(
                     lambda x: {text_column: distortion_fn(x[text_column])},
@@ -105,23 +106,23 @@ def _evaluate_model_worker(
                     batched=True,
                     remove_columns=distorted.column_names,
                 )
-                
+
                 # Ensure labels column exists for classification_metrics
                 if "label" in tokenized.column_names and "labels" not in tokenized.column_names:
                     tokenized = tokenized.rename_column("label", "labels")
 
                 tokenized.set_format("torch")
                 dataloader = DataLoader(tokenized, batch_size=8)
-                
+
                 metrics = classification_metrics(model, dataloader, device=device)
                 accuracies.append(metrics.get("accuracy", 0.0))
-            
+
             _trapz_fn = getattr(np, "trapezoid", None)
             if _trapz_fn is None:
                 _trapz_fn = np.trapz
             auc = float(_trapz_fn(accuracies, strengths))
             total_auc += auc
-            
+
             results_by_distortion[distortion_type] = {
                 "strengths": strengths,
                 "accuracies": accuracies,
@@ -177,18 +178,18 @@ class EnsembleOrchestrator:
 
         results = {}
         models_summary = []
-        
+
         cache_dir = Path(".nightmarenet_cache")
         cache_dir.mkdir(exist_ok=True)
 
         for model_name in models:
             logger.info("Starting evaluation for %s", model_name)
-            
+
             cache_file = cache_dir / f"benchmark_{model_name.replace('/', '_')}_{ds_name}.json"
             if cache_file.exists():
                 logger.info("Loading cached results for %s", model_name)
                 try:
-                    with open(cache_file, "r") as f:
+                    with open(cache_file) as f:
                         cached_data = json.load(f)
                         models_summary.append(cached_data["summary"])
                         results[model_name] = cached_data["results"]
@@ -215,17 +216,17 @@ class EnsembleOrchestrator:
                         "params": res["params"],
                     }
                     models_summary.append(summary)
-                    
+
                     model_results = res["results_by_distortion"]
                     results[model_name] = model_results
-                    
+
                     # Save to cache
                     with open(cache_file, "w") as f:
                         json.dump({
                             "summary": summary,
                             "results": model_results
                         }, f)
-                        
+
                 except TimeoutError:
                     logger.error("Timeout exceeded for model %s", model_name)
                 except Exception as e:
