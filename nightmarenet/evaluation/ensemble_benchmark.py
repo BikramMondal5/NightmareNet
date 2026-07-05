@@ -9,7 +9,6 @@ from concurrent.futures import ProcessPoolExecutor, TimeoutError
 from pathlib import Path
 from typing import Any, Optional
 
-import numpy as np
 import torch
 import yaml
 from pydantic import BaseModel, Field
