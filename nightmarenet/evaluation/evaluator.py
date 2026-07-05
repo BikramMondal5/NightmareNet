@@ -287,7 +287,19 @@ class Evaluator:
             "## Results",
             "",
         ]
-
+        convergence = comparison.get("convergence")
+        final_delta = convergence.get("final_delta") if convergence else None
+        if convergence:
+            lines.extend([
+                "## Training Summary",
+                "",
+                "| Metric | Value |",
+                "|--------|-------|",
+                f"| Cycles completed | {convergence.get('cycles_completed', 'N/A')} |",
+                f"| Final robustness delta | {f'{final_delta:.6f}' if final_delta is not None else 'N/A'} |",
+                f"| Adaptive termination | {'Yes' if convergence.get('auto_terminated') else 'No'} |",
+                "",
+            ]) 
         metrics = comparison.get("metrics", {})
 
         if "recall" in metrics and _metric_ok(metrics["recall"]):

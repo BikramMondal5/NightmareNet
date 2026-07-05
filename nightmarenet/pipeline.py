@@ -604,6 +604,16 @@ class Pipeline:
 
                 # Generate comparison
                 comparison = evaluator.compare(baseline_results, trained_results)
+                comparison["convergence"] = {
+                    "cycles_completed": self._cycles_completed,
+                    "final_delta": self._final_convergence_delta,
+                    "auto_terminated": (
+                        self._convergence_count
+                        >= self.config.get("training", {}).get(
+                                "convergence_patience", 2
+                            )
+                    ),
+                }
                 self.metrics.comparison = comparison
 
                 # Generate markdown report
