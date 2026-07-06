@@ -15,10 +15,9 @@ from typing import Optional
 
 import numpy as np
 import torch
+from datasets import IterableDataset
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-
-from nightmarenet.training.trainer import _tokenize_dataset
 
 logger = logging.getLogger(__name__)
 
@@ -101,13 +100,39 @@ def quick_robustness_score(
             },
             desc="Quick robustness probe",
         )
-        dataloader = _tokenize_dataset(
-            distorted,
-            tokenizer,
-            text_column,
-            max_length,
-            batch_size,
-        )
+        def tokenize_fn(examples):
+            return tokenizer(
+                examples[text_column],
+                truncation=True,
+                padding="max_length",
+                max_length=max_length,
+                return_tensors="pt",
+            )
+        if isinstance(distorted, IterableDataset):
+            tokenized = distorted.map(
+                tokenize_fn,
+                batched=True,
+                remove_columns=(
+                    distorted.column_names
+                    if distorted.column_names
+                    else [text_column]
+                ),
+            )
+            tokenized = tokenized.with_format("torch")
+            dataloader = DataLoader(tokenized, batch_size=batch_size)
+        else:
+            tokenized = distorted.map(
+                tokenize_fn,
+                batched=True,
+                remove_columns=distorted.column_names,
+                desc="Tokenizing",
+            )
+            tokenized.set_format("torch")
+            dataloader = DataLoader(
+                tokenized,
+                batch_size=batch_size,
+                shuffle=True,
+            )
         perplexity = compute_perplexity(
             model=model,
             dataloader=dataloader,
