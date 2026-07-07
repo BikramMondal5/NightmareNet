@@ -240,9 +240,11 @@ def validate_checkpoint_integrity(checkpoint_dir: str, config: Optional[dict] = 
         )
 
     required_files = ["optimizer.pt", "rng_state.pt"]
-    for f in required_files:
-        if not os.path.exists(os.path.join(checkpoint_dir, f)):
-            raise ValueError(f"Checkpoint at {checkpoint_dir} is missing required state file: {f}")
+    for req_file in required_files:
+        if not os.path.exists(os.path.join(checkpoint_dir, req_file)):
+            raise ValueError(
+                f"Checkpoint at {checkpoint_dir} is missing required state file: {req_file}"
+            )
 
     # 5. Checksum/hash validation
     recorded_hashes = metadata.get("file_hashes", {})

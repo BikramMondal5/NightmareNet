@@ -490,14 +490,23 @@ def test_optimizer_param_group_mismatch(minimal_config, shared_model_and_tokeniz
     def on_progress(event):
         trainer2._interrupted = True
 
-    with caplog.at_level(logging.WARNING):
-        trainer2.train(
-            train_dataloader=loader,
-            dream_dataloader=loader,
-            nightmare_dataloader=loader,
-            val_dataloader=loader,
-            on_progress=on_progress
-        )
+    logger = logging.getLogger("nightmarenet.training.trainer")
+    old_level = logger.level
+    old_propagate = logger.propagate
+    logger.setLevel(logging.WARNING)
+    logger.propagate = True
+    try:
+        with caplog.at_level(logging.WARNING, logger="nightmarenet.training.trainer"):
+            trainer2.train(
+                train_dataloader=loader,
+                dream_dataloader=loader,
+                nightmare_dataloader=loader,
+                val_dataloader=loader,
+                on_progress=on_progress
+            )
+    finally:
+        logger.setLevel(old_level)
+        logger.propagate = old_propagate
 
     # Verify warning was logged
     assert "Optimizer param group count mismatch" in caplog.text
