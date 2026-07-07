@@ -2,14 +2,50 @@
 
 from __future__ import annotations
 
+import ipaddress
 import json
 import logging
+import socket
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
+
+def validate_webhook_url(url: str) -> bool:
+    """Validate webhook URL against an allowlist and block internal IPs."""
+    try:
+        parsed = urllib.parse.urlparse(url)
+        if parsed.scheme != "https":
+            return False
+
+        hostname = parsed.hostname
+        if not hostname:
+            return False
+
+        # Allowlist check
+        allowed = False
+        if hostname == "hooks.slack.com":
+            allowed = True
+        elif hostname in ("discord.com", "discordapp.com") and parsed.path.startswith("/api/webhooks/"):
+            allowed = True
+        elif hostname.endswith(".webhook.office.com"):
+            allowed = True
+        
+        if not allowed:
+            return False
+
+        # Resolve IP and block internal
+        ip_addr = socket.gethostbyname(hostname)
+        ip = ipaddress.ip_address(ip_addr)
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast:
+            return False
+            
+        return True
+    except Exception:
+        return False
 
 
 def trigger_webhook(
