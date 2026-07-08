@@ -51,7 +51,9 @@ def test_validate_distortion_contract_determinism() -> None:
     import random
 
     def invalid_distort(text: str, strength: float, seed: int = None) -> str:
-        return text + str(random.random())
+        # Use a counter to ensure different outputs
+        invalid_distort.counter = getattr(invalid_distort, "counter", 0) + 1
+        return text + str(invalid_distort.counter)
 
     failures = validate_distortion_contract(invalid_distort)
     assert len(failures) > 0

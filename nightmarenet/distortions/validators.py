@@ -53,7 +53,7 @@ def validate_distortion_contract(
         result1 = fn(text, strength=0.5, seed=42)
         result2 = fn(text, strength=0.5, seed=42)
         if result1 != result2:
-            failures.append("Same (text, strength, seed) should produce identical output")
+            failures.append("Non-deterministic: same (text, strength, seed) should produce identical output")
     except Exception as e:
         failures.append(f"Determinism test raised exception: {e}")
 
