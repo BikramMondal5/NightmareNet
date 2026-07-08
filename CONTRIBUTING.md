@@ -261,7 +261,6 @@ NightmareNet has a strict OSS / hosted boundary. Treat it as a hard constraint w
 - [`docs/api/openapi.yaml`](docs/api/openapi.yaml) — OpenAPI spec for the OSS HTTP surface
 - [`docs/research/paper-draft.md`](docs/research/paper-draft.md) — academic paper draft (cite this in PRs that touch the algorithm)
 - [`docs/research/benchmark-v1.md`](docs/research/benchmark-v1.md) — reproducible benchmark methodology
-- [`.cursor/plans/`](.cursor/plans) — sprint-level execution plans
 
 ---
 
