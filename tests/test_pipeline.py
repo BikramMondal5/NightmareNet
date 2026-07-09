@@ -283,7 +283,9 @@ class TestPerCycleMetrics:
         pipe._trainer.tokenizer = MagicMock()
         pipe._trainer.device = "cpu"
         pipe._dataset = MagicMock()
-        pipe._train_dl = MagicMock()
+        pipe._eval_dl = MagicMock()
+        pipe._eval_dataset = MagicMock()
+        pipe._distortion_fn = MagicMock()
 
         minimal_config["training"]["auto_terminate"] = False
 
@@ -299,14 +301,34 @@ class TestPerCycleMetrics:
             assert pipe.metrics.per_cycle_metrics[0]["cycle"] == 0
             assert pipe.metrics.per_cycle_metrics[0]["accuracy"] == 0.85
 
-    def test_per_cycle_metrics_skipped_without_train_dl(self, minimal_config):
-        """No train_dl means the lightweight probe is skipped, not crashed."""
+    def test_per_cycle_metrics_skipped_without_eval_dl(self, minimal_config):
+        """No eval_dl means the lightweight probe is skipped, not crashed."""
         pipe = Pipeline(minimal_config)
         pipe._trainer = MagicMock()
         pipe._dataset = MagicMock()
-        # pipe._train_dl left as None
+        # pipe._eval_dl left as None
 
         minimal_config["training"]["auto_terminate"] = False
 
         pipe._handle_cycle_end({"cycle": 0})
         assert pipe.metrics.per_cycle_metrics == []
+
+    def test_per_cycle_metrics_exception_does_not_crash_training(self, minimal_config):
+        """A broken evaluate_cycle should be logged and swallowed, not propagate."""
+        pipe = Pipeline(minimal_config)
+        pipe._trainer = MagicMock()
+        pipe._trainer.model = MagicMock()
+        pipe._trainer.tokenizer = MagicMock()
+        pipe._trainer.device = "cpu"
+        pipe._dataset = MagicMock()
+        pipe._eval_dl = MagicMock()
+        pipe._eval_dataset = MagicMock()
+        pipe._distortion_fn = MagicMock()
+
+        minimal_config["training"]["auto_terminate"] = False
+
+        with patch("nightmarenet.pipeline.evaluate_cycle") as mock_eval_cycle:
+            mock_eval_cycle.side_effect = RuntimeError("boom")
+            # Should not raise
+            pipe._handle_cycle_end({"cycle": 0})
+            assert pipe.metrics.per_cycle_metrics == []
