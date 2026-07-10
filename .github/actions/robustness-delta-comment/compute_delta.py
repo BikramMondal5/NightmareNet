@@ -76,7 +76,10 @@ def main():
         })
 
     with open("delta_results.json", "w") as f:
-        json.dump({"threshold": threshold, "results": results, "exceeds_threshold": exceeds_threshold}, f)
+        json.dump(
+            {"threshold": threshold, "results": results, "exceeds_threshold": exceeds_threshold},
+            f,
+        )
 
     # Export variables for subsequent steps
     with open(os.environ["GITHUB_ENV"], "a") as f:

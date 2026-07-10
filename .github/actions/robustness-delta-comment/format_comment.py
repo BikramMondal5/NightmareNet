@@ -21,7 +21,11 @@ def main():
     except Exception:
         # Fallback if compute_delta didn't run or file is missing
         model_exists = os.environ.get("MODEL_EXISTS", "true").lower() == "true"
-        reason = "Evaluation timed out or failed" if model_exists else "Evaluation skipped (no model found)"
+        reason = (
+            "Evaluation timed out or failed"
+            if model_exists
+            else "Evaluation skipped (no model found)"
+        )
         data = {"skipped": True, "reason": reason}
 
     skipped = data.get("skipped", False)
@@ -55,7 +59,9 @@ def main():
         # We assume overall robustness is decimal, others can be percentage based on name,
         # but let's check values (if <= 1, maybe % is good). Let's use % for clean_accuracy,
         # and decimal for robustness_score as per issue example.
-        is_percent = "accuracy" in metric.lower() or any(x in metric.lower() for x in ["fooler", "attack", "bugg"])
+        is_percent = "accuracy" in metric.lower() or any(
+            x in metric.lower() for x in ["fooler", "attack", "bugg"]
+        )
 
         main_str = format_percentage(item["main"]) if is_percent else format_decimal(item["main"])
         pr_str = format_percentage(item["pr"]) if is_percent else format_decimal(item["pr"])
@@ -83,7 +89,9 @@ def main():
     lines.append("")
     if exceeds_threshold:
         thresh_str = format_percentage(threshold) if threshold > -1 and threshold < 1 else threshold
-        lines.append(f"**Verdict: FAIL** (one or more metrics regressed beyond threshold of {thresh_str})")
+        lines.append(
+            f"**Verdict: FAIL** (one or more metrics regressed beyond threshold of {thresh_str})"
+        )
     else:
         thresh_str = format_percentage(threshold) if threshold > -1 and threshold < 1 else threshold
         lines.append(f"**Verdict: PASS** (no metric regressed beyond threshold of {thresh_str})")
