@@ -24,7 +24,9 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://frontend-aj5.vercel.app"),
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL || "https://frontend-aj5.vercel.app"
+  ),
 
   title: "NightmareNet — Autonomous AI Self-Improvement Platform",
 
