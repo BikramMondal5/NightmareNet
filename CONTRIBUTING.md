@@ -445,6 +445,20 @@ These are applied by maintainers at merge time based on quality. **Do not reques
 - Respond to review comments within 24 hours
 - Follow up merged PRs with related improvements (builds trust, gets `good-backend`)
 
+### Pro Tips (what separates great contributors from average ones)
+
+1. **Resolve CodeRabbitAI suggestions.** Our repo uses automated code review. When CodeRabbit leaves suggestions on your PR, address each one (fix it or explain why you disagree). Unresolved bot comments signal laziness to reviewers.
+
+2. **Re-request review after addressing feedback.** After making changes requested by the code owner, click "Re-request review" on GitHub. Don't just push commits silently and wait - signal that you're ready for the next round.
+
+3. **Complete ALL checklists before requesting review.** The PR template has Acceptance Criteria, Pre-submission Checklist, and Quality Checklist. Every box must be checked (or have an explicit explanation for why not). Reviewers will reject PRs with unchecked boxes without reading the code.
+
+4. **Ask questions when things are ambiguous.** If the issue description is unclear, a design choice has multiple valid approaches, or you're unsure about scope - comment on the issue and ask. This shows ownership and critical thinking. Contributors who ask smart questions earn bonus labels faster than those who guess wrong and waste review cycles.
+
+5. **Reference specific code in your approach.** When requesting assignment or discussing implementation, cite file paths and line numbers. "I'll modify `nightmarenet/training/phases.py:429-528` to add the distillation loss" is 10x better than "I'll implement the feature."
+
+6. **Small PRs merge fast.** If an issue is large, ask if it can be split. A 50-line PR that merges in 1 day is worth more than a 500-line PR stuck in review for a week.
+
 ---
 
 ## Where to ask for help
