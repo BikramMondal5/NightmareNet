@@ -720,27 +720,9 @@ Reproduce with: `nightmarenet distort --type dream --text "..." --strength 0.3 -
 
 **Observations:**
 
-- **Character/word-level corruption (dream and nightmare, all strengths)** — both
-  pipelines apply the same underlying text-level typo/substitution engine, so at
-  low-to-moderate strength their outputs are frequently identical (e.g. E.5, E.6,
-  E.9, E.10@0.3/0.5) or near-identical (E.1, E.2). This reflects the shared
-  `apply_text_distortions` / `apply_semantic_distortions` stages both pipelines
-  call before nightmare's adversarial stage runs.
-- **The genuine dream/nightmare divergence appears at strength ≥ 0.5**, where
-  nightmare's adversarial stage (contradiction injection, cross-domain splicing)
-  activates probabilistically. The clearest examples are **E.3 at strength 0.5**
-  (nightmare injects *"the opposite is actually true"* and *"while others
-  interpret this differently"*), **E.4 at strength 0.8** (nightmare injects
-  *"Despite evidence supporting... many experts argue"*), and **E.8 at strength
-  0.8** (nightmare injects *"Under applicable regulations"* and introduces
-  `[UNK]` tokens). These are the qualitative signature of the nightmare phase:
-  dream corrupts surface form, nightmare corrupts *meaning*.
-- **Note on `[MASK]` artifacts:** a small number of outputs (E.3@0.3, E.4@0.5,
-  E.7@0.3/0.8, E.8@0.5/0.8, E.9@0.8) contain unfilled `[MASK]` tokens from the
-  semantic mask-and-fill sub-engine. This is reproduced faithfully from the
-  actual pipeline output (seed=42) rather than cleaned up, since the acceptance
-  criteria calls for accurate, unmodified examples; it may be worth a follow-up
-  issue against `apply_semantic_distortions`.
+- **Character/word-level corruption (dream and nightmare, all strengths)** -- both pipelines apply the same underlying text-level typo/substitution engine, so at low-to-moderate strength their outputs are frequently identical or near-identical. This reflects the shared `apply_text_distortions` / `apply_semantic_distortions` stages both pipelines call before nightmare's adversarial stage runs.
+- **The genuine dream/nightmare divergence appears at strength >= 0.5**, where nightmare's adversarial stage (contradiction injection, cross-domain splicing) activates probabilistically. This is the qualitative signature of the nightmare phase: dream corrupts surface form, nightmare corrupts *meaning*.
+- **Note on `[MASK]` artifacts:** a small number of outputs contain unfilled `[MASK]` tokens from the semantic mask-and-fill sub-engine, reproduced faithfully rather than cleaned up.
 
 ---
 
