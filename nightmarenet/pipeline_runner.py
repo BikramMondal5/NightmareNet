@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import tempfile
 import threading
 import time
 import uuid
@@ -92,10 +93,10 @@ class PipelineRunner:
                 self._last_heartbeat = time.time()
                 _update_run_state(self.id, "evaluating", self._last_heartbeat)
                 self.pipeline.evaluate()
-                _update_run_state(self.id, "complete", time.time())
+                _update_run_state(self.id, "complete", time.time(), self.pipeline.metrics.to_dict())
             except Exception:
                 logger.exception("Pipeline run %s failed", self.id)
-                _update_run_state(self.id, "failed", time.time())
+                _update_run_state(self.id, "failed", time.time(), self.pipeline.metrics.to_dict())
 
         self._thread = threading.Thread(target=_run, daemon=True, name=f"pipeline-{self.id}")
         self._thread.start()
@@ -197,6 +198,26 @@ def list_all_runs(include_historical: bool = True) -> list[dict]:
     return runs
 
 
+def _atomic_write_json(file_path: Path, data: dict) -> None:
+    """Atomically write JSON data to a file.
+    
+    Uses a temporary file and os.replace to ensure atomic writes,
+    preventing corruption if the process crashes mid-write.
+    """
+    tmp_fd, tmp_path = tempfile.mkstemp(dir=str(file_path.parent), suffix=".tmp")
+    try:
+        with os.fdopen(tmp_fd, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+        os.replace(tmp_path, str(file_path))
+    except Exception:
+        # Clean up temp file on error
+        try:
+            os.unlink(tmp_path)
+        except Exception:
+            pass
+        raise
+
+
 # ------------------------------------------------------------------
 # File-based persistence
 # ------------------------------------------------------------------
@@ -206,7 +227,13 @@ _DEFAULT_RUNS_DIR = "runs"
 
 
 def _get_runs_dir() -> Path:
-    """Get the directory for storing run state files."""
+    """Get the directory for storing run state files.
+    
+    Uses NIGHTMARENET_RUNS_DIR environment variable if set, otherwise
+    defaults to './runs' relative to the current working directory.
+    In production, set NIGHTMARENET_RUNS_DIR to a persistent location
+    (e.g., the same directory as tracking.output_dir).
+    """
     runs_dir = Path(os.environ.get(_RUNS_DIR_ENV, _DEFAULT_RUNS_DIR))
     runs_dir.mkdir(parents=True, exist_ok=True)
     return runs_dir
@@ -226,12 +253,11 @@ def _persist_run_state(run_id: str, config: dict, status: str, timestamp: float)
         "metrics": {},
     }
 
-    with open(run_file, "w", encoding="utf-8") as f:
-        json.dump(state, f, indent=2)
+    _atomic_write_json(run_file, state)
     logger.debug("Persisted run state for %s to %s", run_id, run_file)
 
 
-def _update_run_state(run_id: str, status: str, timestamp: float) -> None:
+def _update_run_state(run_id: str, status: str, timestamp: float, metrics: Optional[dict] = None) -> None:
     """Update run state on disk."""
     runs_dir = _get_runs_dir()
     run_file = runs_dir / f"{run_id}.json"
@@ -246,9 +272,10 @@ def _update_run_state(run_id: str, status: str, timestamp: float) -> None:
 
         state["status"] = status
         state["last_heartbeat"] = timestamp
+        if metrics:
+            state["metrics"] = metrics
 
-        with open(run_file, "w", encoding="utf-8") as f:
-            json.dump(state, f, indent=2)
+        _atomic_write_json(run_file, state)
     except Exception:
         logger.debug("Failed to update run state for %s", run_id)
 
@@ -284,10 +311,10 @@ def load_persisted_runs() -> None:
                 continue
 
             # Detect stale running runs
-            if status == "running" and (now - last_heartbeat > stale_threshold):
+            active_statuses = {"running", "ingesting", "preparing", "training", "evaluating"}
+            if status in active_statuses and (now - last_heartbeat > stale_threshold):
                 state["status"] = "interrupted"
-                with open(run_file, "w", encoding="utf-8") as f:
-                    json.dump(state, f, indent=2)
+                _atomic_write_json(run_file, state)
                 logger.info("Marked stale run %s as interrupted", run_id)
 
         except Exception:
