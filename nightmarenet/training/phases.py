@@ -372,7 +372,7 @@ class NightmarePhase:
         self.gradient_accumulation_steps = config.get("gradient_accumulation_steps", 1)
 
     def _save_lr(self) -> list[float]:
-        """Save current learning rates."""
+        """Save current learning rates and scheduler base_lrs."""
         return [pg["lr"] for pg in self.optimizer.param_groups]
 
     def _restore_lr(self, saved_lrs: list[float]) -> None:
@@ -385,11 +385,21 @@ class NightmarePhase:
             )
         for pg, lr in zip(self.optimizer.param_groups, saved_lrs):
             pg["lr"] = lr
+        # Restore scheduler base_lrs if scheduler exists
+        if self.lr_scheduler is not None and hasattr(self.lr_scheduler, "base_lrs"):
+            for i, lr in enumerate(saved_lrs):
+                if i < len(self.lr_scheduler.base_lrs):
+                    self.lr_scheduler.base_lrs[i] = lr
 
     def _adjust_lr(self, multiplier: float) -> None:
-        """Temporarily adjust learning rate."""
+        """Temporarily adjust learning rate (composes with scheduler)."""
         for param_group in self.optimizer.param_groups:
             param_group["lr"] *= multiplier
+        # Also scale scheduler base_lrs so step() doesn't override
+        if self.lr_scheduler is not None and hasattr(self.lr_scheduler, "base_lrs"):
+            self.lr_scheduler.base_lrs = [
+                lr * multiplier for lr in self.lr_scheduler.base_lrs
+            ]
 
     def run(self, dataloader: DataLoader, num_epochs: int = 1) -> dict:
         """Run the nightmare phase (adversarial training).

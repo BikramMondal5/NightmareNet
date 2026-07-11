@@ -425,7 +425,7 @@ class Trainer:
         if warmup_steps > 0:
 
             def warmup_lambda(current_step):
-                return current_step / warmup_steps
+                return min(1.0, current_step / warmup_steps)
 
             lr_scheduler = LambdaLR(
                 self.optimizer,

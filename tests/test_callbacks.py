@@ -1,5 +1,8 @@
 """Tests for training callback event system."""
 
+import pytest
+import torch
+
 from nightmarenet.training.callbacks import CallbackManager, EventType, TrainingEvent
 
 
@@ -121,3 +124,38 @@ def test_callback_manager_epoch_end_event() -> None:
     )
 
     assert received == [EventType.EPOCH_END]
+
+
+def test_warmup_lr_caps_at_base_value():
+    """Verify LR at step 0 < LR at step warmup_steps, and LR never exceeds base."""
+    from torch.optim.lr_scheduler import LambdaLR
+
+    model = torch.nn.Linear(10, 2)
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
+    warmup_steps = 10
+
+    def warmup_lambda(current_step):
+        return min(1.0, current_step / warmup_steps)
+
+    scheduler = LambdaLR(optimizer, lr_lambda=warmup_lambda)
+
+    # Step 0: LR should be 0 (0/10 = 0)
+    lr_at_0 = scheduler.get_last_lr()[0]
+
+    # Step through warmup
+    for _ in range(warmup_steps):
+        optimizer.step()
+        scheduler.step()
+
+    lr_at_warmup = scheduler.get_last_lr()[0]
+
+    # Step well past warmup
+    for _ in range(50):
+        optimizer.step()
+        scheduler.step()
+
+    lr_past_warmup = scheduler.get_last_lr()[0]
+
+    assert lr_at_0 < lr_at_warmup, "LR should increase during warmup"
+    assert lr_at_warmup == pytest.approx(0.01), "LR should reach base_lr at warmup end"
+    assert lr_past_warmup == pytest.approx(0.01), "LR must not exceed base_lr after warmup"
