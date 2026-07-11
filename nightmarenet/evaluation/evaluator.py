@@ -33,6 +33,7 @@ def _bootstrap_ci(
     trained: list[float],
     n_bootstrap: int = 10000,
     alpha: float = 0.05,
+    seed: int = 42,
 ) -> dict:
     """Compute bootstrap confidence interval for paired differences.
 
@@ -41,6 +42,7 @@ def _bootstrap_ci(
         trained: List of trained metric values (same length as baseline).
         n_bootstrap: Number of bootstrap samples.
         alpha: Significance level for CI (default 0.05 for 95% CI).
+        seed: Random seed for reproducibility (default 42).
 
     Returns:
         Dict with delta_mean, ci_lower, ci_upper, p_value, and significant flag.
@@ -60,10 +62,11 @@ def _bootstrap_ci(
     deltas = trained_arr - baseline_arr
     delta_mean = float(np.mean(deltas))
 
-    # Bootstrap resampling
+    # Bootstrap resampling with seeded RNG for reproducibility
+    rng = np.random.default_rng(seed)
     n = len(deltas)
     bootstrap_deltas = np.array(
-        [np.mean(deltas[np.random.choice(n, size=n, replace=True)]) for _ in range(n_bootstrap)]
+        [np.mean(deltas[rng.choice(n, size=n, replace=True)]) for _ in range(n_bootstrap)]
     )
     ci_lower = float(np.percentile(bootstrap_deltas, 100 * alpha / 2))
     ci_upper = float(np.percentile(bootstrap_deltas, 100 * (1 - alpha / 2)))
@@ -304,7 +307,9 @@ class Evaluator:
                 baseline_perplexities = baseline.get("perplexities", [])
                 trained_perplexities = trained.get("perplexities", [])
                 if baseline_perplexities and trained_perplexities:
-                    # Use inverse perplexity as the metric (higher is better)
+                    # Use inverse perplexity as the metric (higher is better).
+                    # Perplexity is lower-is-better, so 1/ppl converts it to higher-is-better
+                    # for the paired statistical test to correctly interpret improvements.
                     baseline_scores = [1.0 / max(p, 1e-8) for p in baseline_perplexities]
                     trained_scores = [1.0 / max(p, 1e-8) for p in trained_perplexities]
                     significance = _bootstrap_ci(
