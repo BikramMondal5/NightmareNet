@@ -14,12 +14,12 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Callable, Optional
 
-from nightmarenet.training.callbacks import CallbackManager, TrainingEvent
 from nightmarenet.data.generator import create_generators_from_config
 from nightmarenet.data.ingest import DataIngestor
 from nightmarenet.distortions.text import apply_text_distortions
 from nightmarenet.evaluation.evaluator import Evaluator
 from nightmarenet.evaluation.metrics import evaluate_cycle, quick_robustness_score
+from nightmarenet.training.callbacks import CallbackManager, TrainingEvent
 from nightmarenet.training.trainer import Trainer, _tokenize_dataset
 from nightmarenet.utils.config import load_config
 from nightmarenet.utils.telemetry import record_metric, setup_telemetry, trace_phase
@@ -189,9 +189,7 @@ class Pipeline:
                     tokenizer=self._trainer.tokenizer,
                     base_dataset=self._eval_dataset,
                     distortion_fn=self._distortion_fn,
-                    text_column=self.config.get("dataset", {}).get(
-                        "text_column", "text"
-                    ),
+                    text_column=self.config.get("dataset", {}).get("text_column", "text"),
                     max_length=self.config.get("model", {}).get("max_length", 128),
                     batch_size=self.config.get("training", {}).get("batch_size", 8),
                     device=str(self._trainer.device),
@@ -284,9 +282,7 @@ class Pipeline:
             "source": (
                 "urls"
                 if urls
-                else (
-                    "file" if file_path else ("text" if text_content else "huggingface")
-                )
+                else ("file" if file_path else ("text" if text_content else "huggingface"))
             ),
             "dataset.name": dataset_cfg.get("name", ""),
         }
@@ -299,9 +295,7 @@ class Pipeline:
                 elif text_content:
                     self._dataset = ingestor.from_text_content(text_content)
                 elif hf_dataset:
-                    self._dataset = ingestor.from_huggingface(
-                        hf_dataset, subset=hf_subset
-                    )
+                    self._dataset = ingestor.from_huggingface(hf_dataset, subset=hf_subset)
                 else:
                     raise ValueError(
                         "Provide one of: urls, file_path, text_content, or hf_dataset."
@@ -386,9 +380,7 @@ class Pipeline:
                             estimate["estimated_minutes"],
                         )
                 except Exception:
-                    logger.warning(
-                        "Estimate check failed; proceeding anyway.", exc_info=True
-                    )
+                    logger.warning("Estimate check failed; proceeding anyway.", exc_info=True)
 
             quality_results: dict = {}
 
@@ -433,9 +425,7 @@ class Pipeline:
             else:
                 logger.warning("Adaption optimization returned None; keeping original.")
         except Exception:
-            logger.warning(
-                "Adaption optimization failed; keeping original.", exc_info=True
-            )
+            logger.warning("Adaption optimization failed; keeping original.", exc_info=True)
 
     def _optimize_per_phase(
         self,
@@ -478,9 +468,7 @@ class Pipeline:
                     elif phase_name == "nightmare":
                         self._nightmare_base = optimized_dataset
 
-                    logger.info(
-                        "Phase '%s' optimization complete: %s", phase_name, quality
-                    )
+                    logger.info("Phase '%s' optimization complete: %s", phase_name, quality)
                 else:
                     logger.warning(
                         "Phase '%s' optimization returned None; using original.",
@@ -519,13 +507,9 @@ class Pipeline:
                 # Reserve a held-out fraction for post-training evaluation so
                 # we do not measure performance on the same data we trained on.
                 _min_eval_samples = 25
-                eval_split_ratio = self.config.get("evaluation", {}).get(
-                    "eval_split_ratio", 0.2
-                )
+                eval_split_ratio = self.config.get("evaluation", {}).get("eval_split_ratio", 0.2)
                 base_for_split = (
-                    self._wake_dataset
-                    if self._wake_dataset is not None
-                    else self._dataset
+                    self._wake_dataset if self._wake_dataset is not None else self._dataset
                 )
                 n_total = len(base_for_split)  # type: ignore[arg-type]
 
@@ -556,13 +540,9 @@ class Pipeline:
                 # Save reference distortion function for robustness evaluation
                 self._distortion_fn = apply_text_distortions
 
-                dream_base = (
-                    self._dream_base if self._dream_base is not None else self._dataset
-                )
+                dream_base = self._dream_base if self._dream_base is not None else self._dataset
                 nightmare_base = (
-                    self._nightmare_base
-                    if self._nightmare_base is not None
-                    else self._dataset
+                    self._nightmare_base if self._nightmare_base is not None else self._dataset
                 )
 
                 dream_data = dream_gen.generate(dream_base)
@@ -577,10 +557,6 @@ class Pipeline:
                     callback_manager=self.callback_manager,
                 )
                 self.callback_manager.on_all(self._on_training_event)
-
-                self.callback_manager.on_all(
-                    lambda event: _on_train_progress(event.to_dict())
-                )
 
                 self._trainer.run_id = self.run_id
 
@@ -732,9 +708,7 @@ class Pipeline:
                 # Use the held-out eval DataLoader so we never measure on
                 # training data; fall back to train_dl only if eval_dl is
                 # unavailable (should not happen in practice).
-                clean_dl = (
-                    self._eval_dl if self._eval_dl is not None else self._train_dl
-                )
+                clean_dl = self._eval_dl if self._eval_dl is not None else self._train_dl
 
                 # Evaluate trained model
                 trained_results = evaluator.evaluate(
@@ -767,9 +741,7 @@ class Pipeline:
                     "final_delta": self._final_convergence_delta,
                     "auto_terminated": (
                         self._convergence_count
-                        >= self.config.get("training", {}).get(
-                            "convergence_patience", 2
-                        )
+                        >= self.config.get("training", {}).get("convergence_patience", 2)
                     ),
                 }
                 self.metrics.comparison = comparison
@@ -795,9 +767,7 @@ class Pipeline:
 
                 # Trigger webhook for run_complete (success)
                 robustness_metric = comparison.get("metrics", {}).get("robustness", {})
-                robustness_delta = robustness_metric.get("deltas", {}).get(
-                    "auc_robustness"
-                )
+                robustness_delta = robustness_metric.get("deltas", {}).get("auc_robustness")
                 if robustness_delta is None:
                     robustness_delta = comparison.get("robustness_delta")
 
@@ -822,9 +792,7 @@ class Pipeline:
                     baseline_auc = robustness_metric.get("baseline", {}).get(
                         "auc_robustness", "N/A"
                     )
-                    trained_auc = robustness_metric.get("trained", {}).get(
-                        "auc_robustness", "N/A"
-                    )
+                    trained_auc = robustness_metric.get("trained", {}).get("auc_robustness", "N/A")
                     trigger_webhook(
                         self.config,
                         "regression_detected",
@@ -834,9 +802,7 @@ class Pipeline:
                         ),
                         {
                             "run_id": self.run_id,
-                            "model": self.config.get("model", {}).get(
-                                "name", "unknown"
-                            ),
+                            "model": self.config.get("model", {}).get("name", "unknown"),
                             "robustness_delta": f"{robustness_delta:+.4f}",
                             "baseline_auc": baseline_auc,
                             "trained_auc": trained_auc,
