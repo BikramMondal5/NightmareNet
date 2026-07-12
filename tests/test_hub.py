@@ -1,8 +1,9 @@
-import pytest
-import yaml
-from pathlib import Path
 from unittest.mock import MagicMock, patch
-from nightmarenet.hub.core import _generate_model_card, push_model, pull_model
+
+import yaml
+
+from nightmarenet.hub.core import _generate_model_card, pull_model, push_model
+
 
 def test_generate_model_card_formatting():
     """Verify that the model card builds the correct YAML frontmatter and markdown layout."""
@@ -13,9 +14,7 @@ def test_generate_model_card_formatting():
         "distortion_families": ["text", "semantic"],
         "config": {"model": {"name": "distilbert-base-uncased"}}
     }
-    
     card_content = _generate_model_card(repo_id, metadata)
-    
     # Assert tag headers are present
     assert "nightmarenet" in card_content
     assert "robustness" in card_content
@@ -28,24 +27,20 @@ def test_push_model_execution(mock_hf_api, tmp_path):
     """Verify push_model writes README.md and calls HfApi upload methods correctly."""
     mock_api_instance = MagicMock()
     mock_hf_api.return_value = mock_api_instance
-    
     # Setup dummy local directory structure
     model_dir = tmp_path / "model_artifacts"
     model_dir.mkdir()
     (model_dir / "pytorch_model.bin").write_text("dummy_weights")
-    
     metadata_file = tmp_path / "metadata.yaml"
     dummy_meta = {"robustness_score": 0.91, "cycle_count": 2}
     with open(metadata_file, "w") as f:
         yaml.safe_dump(dummy_meta, f)
-        
     # Execute the push
     push_model(
         model_dir=str(model_dir),
         repo_id="test-user/hardened-test",
         metadata_path=str(metadata_file)
     )
-    
     # Verify local file generation and API calls
     assert (model_dir / "README.md").exists()
     mock_api_instance.create_repo.assert_called_once_with(
@@ -57,9 +52,7 @@ def test_push_model_execution(mock_hf_api, tmp_path):
 def test_pull_model_execution(mock_snapshot, tmp_path):
     """Verify pull_model creates target folders and routes repo arguments to snapshot downloader."""
     target_dir = tmp_path / "download_target"
-    
     pull_model(repo_id="test-org/public-weights", target_dir=str(target_dir))
-    
     assert target_dir.exists()
     mock_snapshot.assert_called_once_with(
         repo_id="test-org/public-weights",

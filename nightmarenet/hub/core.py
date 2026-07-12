@@ -47,7 +47,6 @@ def _generate_model_card(repo_id: str, metadata: Dict[str, Any]) -> str:
 This model has been robustified using the NightmareNet framework.
 
 ## Model Training & Resilience Profile
-## Model Training & Resilience Profile
 * **Robustness Score:** {metadata.get('robustness_score', 'N/A')}
 * **Cycle Details:** Loop execution phase successfully completed.
 * **Distortion Vectors Defended:** {", ".join(metadata.get('distortion_families', ['None']))}
@@ -67,8 +66,12 @@ def push_model(model_dir: str, repo_id: str, metadata_path: Optional[str] = None
         raise FileNotFoundError(msg)
 
     token = os.getenv("HF_TOKEN")
+    if not token:
+        raise RuntimeError(
+            "HF_TOKEN environment variable is required for pushing models to HuggingFace Hub. "
+            "Set it with: export HF_TOKEN=your_token"
+        )
     api = HfApi(token=token)
-
     metadata: Dict[str, Any] = {}
     if metadata_path:
         metadata_file = Path(metadata_path)

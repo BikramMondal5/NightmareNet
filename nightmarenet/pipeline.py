@@ -920,7 +920,12 @@ class Pipeline:
         self.optimize()
         self.prepare()
         self.train()
-        return self.evaluate()
+        comparison = self.evaluate()
+
+        if export_dir:
+            self.export(export_dir)
+
+        return comparison
 
 def create_pipeline_from_config(
     config_path: str = "configs/default.yaml",
