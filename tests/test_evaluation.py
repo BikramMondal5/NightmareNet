@@ -1,5 +1,6 @@
 """Tests for evaluation metrics and comparison."""
 
+import logging
 
 import pytest
 import torch
@@ -235,7 +236,7 @@ class TestCertificationIntegration:
         assert captured["batch_size"] == 5
         assert captured["subset_size"] == 1
 
-    def test_certification_budget_reduces_n_and_flags_exceeded(self, tmp_path, caplog):
+    def test_certification_budget_reduces_n_and_flags_exceeded(self, tmp_path):
         """Budget control: when n * subset_size exceeds budget, n is reduced
         proportionally, budget_exceeded is flagged, and a warning is logged."""
         evaluator = _make_cert_evaluator(
@@ -252,18 +253,36 @@ class TestCertificationIntegration:
         )
         dataset = _CertListDataset([{"text": "a", "label": 0} for _ in range(10)])
 
-        # Target the evaluator's logger by name (not just the root/default level).
-        # nightmarenet/utils/logging_config.setup_logging() sets propagate=False on the
-        # "nightmarenet" logger the first time it's called anywhere in the test session --
-        # after that, records from child loggers like this one never reach the root
-        # logger, so caplog.at_level("WARNING") alone would silently miss them depending
-        # on test execution order. Attaching directly to the named logger sidesteps that.
-        with caplog.at_level("WARNING", logger="nightmarenet.evaluation.evaluator"):
+        # caplog.at_level(..., logger=name) is *not* used here: whether it attaches its
+        # capture handler directly to the named logger or only adjusts that logger's
+        # level (leaving the handler on the root logger) differs across pytest versions,
+        # and nightmarenet/utils/logging_config.setup_logging() sets propagate=False on
+        # the "nightmarenet" logger the first time it's called anywhere in the test
+        # session -- so whether this test passes can depend on both the pytest version
+        # resolved for a given Python version and on test execution order elsewhere in
+        # the suite. Attaching a plain logging.Handler directly to the evaluator's own
+        # logger sidesteps both: a logger's own handlers always fire regardless of its
+        # (or an ancestor's) propagate setting, independent of caplog/pytest internals.
+        target_logger = logging.getLogger("nightmarenet.evaluation.evaluator")
+        records: list[logging.LogRecord] = []
+
+        class _ListHandler(logging.Handler):
+            def emit(self, record):
+                records.append(record)
+
+        handler = _ListHandler(level=logging.WARNING)
+        original_level = target_logger.level
+        target_logger.addHandler(handler)
+        target_logger.setLevel(logging.WARNING)
+        try:
             results = evaluator.evaluate(clean_dataloader=None, base_dataset=dataset)
+        finally:
+            target_logger.removeHandler(handler)
+            target_logger.setLevel(original_level)
 
         cert = results["certification"]
         assert cert["budget_exceeded"] is True
-        assert any("budget" in record.message.lower() for record in caplog.records)
+        assert any("budget" in record.getMessage().lower() for record in records)
 
     def test_certification_within_budget_not_flagged(self, tmp_path):
         """When n * subset_size is within budget, no reduction happens."""
