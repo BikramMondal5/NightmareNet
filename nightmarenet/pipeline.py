@@ -801,6 +801,24 @@ class Pipeline:
                         {"model": self.config.get("model", {}).get("name", "unknown")},
                     )
 
+                # ── Automated HuggingFace Hub Push Gating ──────────────────
+                tracking_cfg = self.config.get("tracking", {})
+                auto_push_repo = tracking_cfg.get("auto_push_hub")
+                if auto_push_repo:
+                    import tempfile
+                    from nightmarenet.hub.core import push_model
+                    
+                    logger.info("Automated post-training synchronization triggered for hub: %s", auto_push_repo)
+                    try:
+                        with tempfile.TemporaryDirectory() as tmp_dir:
+                            # Localize model weights, tokenizer, and evaluation reports
+                            self.export(tmp_dir)
+                            
+                            # Fire the optional dependency hub uploader
+                            push_model(model_dir=tmp_dir, repo_id=auto_push_repo)
+                    except Exception as upload_err:
+                        logger.error("Automated HuggingFace Hub push sequence failed: %s", upload_err)
+
                 return comparison
             except Exception as exc:
                 self._fail(f"Evaluation failed: {exc}")
@@ -894,6 +912,7 @@ class Pipeline:
             hf_dataset=hf_dataset,
             hf_subset=hf_subset,
         )
+        
         self.optimize()
         self.prepare()
         self.train()
@@ -901,6 +920,23 @@ class Pipeline:
 
         if export_dir:
             self.export(export_dir)
+
+        # Auto-push integration layer check
+        if isinstance(self.config, dict) and self.config.get("tracking", {}).get("auto_push_hub"):
+            repo_id = self.config["tracking"]["auto_push_hub"]
+            print(f"Auto-push enabled. Initiating Hub sync to: {repo_id}")
+            from nightmarenet.hub.core import push_model
+            
+            # Route local model tracking artifacts automatically
+            target_path = export_dir if export_dir else "./output/best"
+            try:
+                push_model(
+                    model_dir=str(target_path),
+                    repo_id=repo_id,
+                    metadata_path=None
+                )
+            except Exception as e:
+                print(f"Warning: Pipeline auto-push encountered an operational anomaly: {e}")
 
         return comparison
 

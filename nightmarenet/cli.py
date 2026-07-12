@@ -12,6 +12,7 @@ import json
 import sys
 from pathlib import Path
 from typing import Optional
+from nightmarenet.hub.core import push_model, pull_model
 
 from nightmarenet import __version__
 
@@ -517,7 +518,31 @@ def cmd_transfer(args: argparse.Namespace) -> int:
         print("Invalid arguments for transfer command.", file=sys.stderr)
         return 1
     return 0
+def cmd_push(args: argparse.Namespace) -> int:
+    """Push a hardened model package structure to HuggingFace Hub."""
+    try:
+        push_model(
+            model_dir=args.model,
+            repo_id=args.hub,
+            metadata_path=args.metadata
+        )
+        return 0
+    except Exception as e:
+        print(f"Error during Hub push operational routing: {e}", file=sys.stderr)
+        return 1
 
+
+def cmd_pull(args: argparse.Namespace) -> int:
+    """Pull a pre-hardened model snapshot layout from HuggingFace Hub."""
+    try:
+        pull_model(
+            repo_id=args.repo,
+            target_dir=args.output
+        )
+        return 0
+    except Exception as e:
+        print(f"Error during Hub pull operational routing: {e}", file=sys.stderr)
+        return 1
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -619,8 +644,20 @@ def build_parser() -> argparse.ArgumentParser:
         "--measure", action="store_true", help="Measure transfer efficiency"
     )
     transfer_parser.add_argument("--transferred", help="Path to transferred evaluation JSON")
-    transfer_parser.add_argument("--baseline", help="Path to baseline evaluation JSON")
+    transfer_parser.add_argument("--baseline", help="Path to baseline evaluation JSON")                                                                          
+    # push command parsing mapping
+    push_parser = subparsers.add_parser("push", help="Upload a hardened model directory to HuggingFace Hub")
+    push_parser.add_argument("--model", required=True, help="Path to local trained checkpoint directory")
+    push_parser.add_argument("--hub", required=True, help="Target HuggingFace repository destination space (org/repo)")
+    push_parser.add_argument("--metadata", help="Optional path to training log metadata file (YAML)")
 
+    # pull command parsing mapping
+    pull_parser = subparsers.add_parser("pull", help="Download a pre-hardened model snapshot layout locally")
+    pull_parser.add_argument("repo", help="Target HuggingFace source space handle (org/repo)")
+    pull_parser.add_argument("--output", required=True, help="Target output directory vector to write weights artifacts into")
+
+
+                                                                                    
     return parser
 
 
@@ -639,6 +676,8 @@ def main(argv: Optional[list] = None) -> int:
         "distort": cmd_distort,
         "foundation": cmd_foundation,
         "transfer": cmd_transfer,
+        "push": cmd_push,
+        "pull": cmd_pull,
     }
 
     return commands[args.command](args)
