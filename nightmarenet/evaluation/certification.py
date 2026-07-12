@@ -449,17 +449,21 @@ def certify_dataset(
         if len(dataset) == 0:
             return _empty_certification_result()
 
+    per_sample_budgets: list[int | None]
+
     if certification_budget_total is not None:
-        # Distribute the total fairly and exactly: base passes per sample, with the
-        # remainder spread one-per-sample rather than forcing a minimum of 1 per sample
-        # regardless of budget (that would silently let a small budget total across many
-        # samples add up to far more than certification_budget_total).
         base = certification_budget_total // len(dataset)
         remainder = certification_budget_total % len(dataset)
-        per_sample_budgets = [base + 1 if i < remainder else base for i in range(len(dataset))]
+        per_sample_budgets = [
+            base + 1 if i < remainder else base
+            for i in range(len(dataset))
+        ]
         logger.info(
             "certification_budget_total=%d over %d samples -> %d-%d forward passes/sample",
-            certification_budget_total, len(dataset), base, base + (1 if remainder else 0),
+            certification_budget_total,
+            len(dataset),
+            base,
+            base + (1 if remainder else 0),
         )
     else:
         per_sample_budgets = [None] * len(dataset)
@@ -492,7 +496,9 @@ def certify_dataset(
     radii = [r.certified_radius for r in results]
     abstain_count = sum(1 for r in results if r.abstained)
     correctness = [
-        (r.correct if not r.abstained else False) for r in results if r.label is not None
+      (r.correct is True) if not r.abstained else False
+      for r in results
+      if r.label is not None
     ]
 
     return {
