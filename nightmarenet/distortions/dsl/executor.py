@@ -161,7 +161,7 @@ class ChainExecutor:
             if isinstance(node.value, (int, float)):
                 return float(node.value)
             raise ValueError("Only numeric literals are allowed")
-        elif isinstance(node, ast.Num):  # Python < 3.8 compatibility
+        elif hasattr(ast, "Num") and isinstance(node, ast.Num):  # Python < 3.8 compatibility
             if isinstance(node.n, (int, float)):
                 return float(node.n)
             raise ValueError(f"Unsupported numeric type in ast.Num: {type(node.n)}")

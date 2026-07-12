@@ -79,6 +79,8 @@ def push_model(model_dir: str, repo_id: str, metadata_path: Optional[str] = None
             raise FileNotFoundError(f"Metadata file not found: {metadata_path}")
         with open(metadata_path, encoding='utf-8') as f:
             metadata = yaml.safe_load(f) or {}
+        if not isinstance(metadata, dict):
+            raise TypeError("Metadata YAML must contain a mapping")
 
     card_content = _generate_model_card(repo_id, metadata)
     card_path = src_path / "README.md"

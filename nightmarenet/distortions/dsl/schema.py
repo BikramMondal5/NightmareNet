@@ -77,6 +77,11 @@ class ChainStep(BaseModel):
             # ast.Num is for Python < 3.8, ast.Constant >= 3.8
             if isinstance(comparator, ast.Constant) and comparator.value is None:
                 raise ValueError("None literal is not allowed")
+            # Block non-numeric constants (like strings or booleans)
+            if isinstance(comparator, ast.Constant):
+                val_type = type(comparator.value)
+                if val_type is bool or val_type not in (int, float):
+                    raise ValueError("Condition must compare with a numeric literal")
 
             # Validate the operator
             allowed_ops = {
