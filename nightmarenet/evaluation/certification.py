@@ -397,6 +397,7 @@ def certify_dataset(
     label_column: Optional[str] = "label",
     sigma: float = 0.25,
     n: int = 1000,
+    n0: int = 100,
     alpha: float = 0.001,
     subset_size: Optional[int] = None,
     batch_size: int = 100,
@@ -418,7 +419,7 @@ def certify_dataset(
         text_column: Column name containing the input text.
         label_column: Column name containing the ground-truth label, or None if the
             dataset has no labels (correctness won't be reported).
-        sigma, n, alpha, batch_size, max_length, device: See certify_sample.
+        sigma, n, n0, alpha, batch_size, max_length, device: See certify_sample.
         subset_size: If given, certify only a random (seeded) subset of this size rather
             than the full dataset -- certification is far more expensive per-sample than
             the empirical metrics, so a full-dataset run is rarely appropriate. A
@@ -479,6 +480,7 @@ def certify_dataset(
             label=label,
             sigma=sigma,
             n=n,
+            n0=n0,
             alpha=alpha,
             batch_size=batch_size,
             max_length=max_length,
