@@ -373,9 +373,11 @@ randomized smoothing–based certified robustness through the
 
 Unlike empirical robustness metrics, which measure observed model behavior
 under predefined adversarial perturbations, randomized smoothing provides
-formal robustness guarantees for the smoothed classifier by certifying an
-L2 radius in the embedding space within which its prediction is guaranteed
-to remain unchanged with high probability.
+formal robustness guarantees: it certifies an L2 radius in the embedding
+space within which the smoothed classifier's prediction (the plurality vote
+across n noisy embedding copies) is guaranteed to remain unchanged with
+high probability. This guarantee applies to the smoothed classifier, not
+unconditionally to the underlying model's raw (un-smoothed) prediction.
 
 A preliminary certification experiment compares the baseline model with the
 model after one wake–nightmare training cycle using the same evaluation
