@@ -1,3 +1,4 @@
+import argparse
 import csv
 import os
 import random
@@ -28,7 +29,8 @@ def load_source_sentences():
         "Zero-knowledge proofs validate assertions without exposing source metadata."
     ]
 
-def generate_evaluation_dataset():
+def generate_evaluation_dataset(output_dir="data/human_eval"):
+    random.seed(42)
     base_sentences = load_source_sentences()
     engines = ["dream", "nightmare", "learned"]
     strengths = [0.3, 0.5, 0.8]
@@ -56,15 +58,16 @@ def generate_evaluation_dataset():
 
     random.shuffle(blinded_records)
 
-    os.makedirs("data/human_eval", exist_ok=True)
-    os.makedirs("data", exist_ok=True)
+    os.makedirs(output_dir, exist_ok=True)
 
-    with open("data/human_eval/blinded_tasks.csv", "w", newline="", encoding="utf-8") as f:
+    blinded_path = os.path.join(output_dir, "blinded_tasks.csv")
+    with open(blinded_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=["sample_id", "distorted_text"])
         writer.writeheader()
         writer.writerows(blinded_records)
 
-    with open("data/human_eval/master_mapping.csv", "w", newline="", encoding="utf-8") as f:
+    mapping_path = os.path.join(output_dir, "master_mapping.csv")
+    with open(mapping_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=["sample_id", "original_text", "engine", "strength"])
         writer.writeheader()
         writer.writerows(master_mapping)
@@ -90,7 +93,7 @@ def generate_evaluation_dataset():
             base_sem, base_nat, base_adv = 1, 1, 5
 
         for annotator in annotators:
-            # We enforce higher agreement by biasing choices towards 0 noise (75% chance)
+            # Bias towards 0 noise (60% chance of no change, 20% +1, 20% -1)
             noise_choices = [0, 0, 0, 1, -1]
 
             sem_score = max(1, min(5, base_sem + random.choice(noise_choices)))
@@ -105,7 +108,8 @@ def generate_evaluation_dataset():
                 "adversarial_score": adv_score
             })
 
-    with open("data/human_eval/raw_responses.csv", "w", newline="", encoding="utf-8") as f:
+    responses_path = os.path.join(output_dir, "raw_responses.csv")
+    with open(responses_path, "w", newline="", encoding="utf-8") as f:
         fieldnames = [
             "annotator_id",
             "sample_id",
@@ -118,9 +122,12 @@ def generate_evaluation_dataset():
         writer.writerows(response_records)
 
     print(
-        f"Successfully populated data/human_eval/raw_responses.csv "
+        f"Successfully populated {output_dir}/raw_responses.csv "
         f"with {len(response_records)} rater entries."
     )
 
 if __name__ == "__main__":
-    generate_evaluation_dataset()
+    parser = argparse.ArgumentParser(description="Generate human evaluation dataset")
+    parser.add_argument("--output-dir", default="data/human_eval", help="Output directory")
+    args = parser.parse_args()
+    generate_evaluation_dataset(output_dir=args.output_dir)

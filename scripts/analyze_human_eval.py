@@ -1,12 +1,14 @@
+import argparse
 import csv
+import os
 
 import numpy as np
 
 
-def load_data():
+def load_data(input_dir="data/human_eval"):
     """Loads raw responses and master mapping records into memory."""
     responses = []
-    with open("data/human_eval/raw_responses.csv", encoding="utf-8") as f:
+    with open(os.path.join(input_dir, "raw_responses.csv"), encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
             responses.append({
@@ -18,7 +20,7 @@ def load_data():
             })
 
     mapping = {}
-    with open("data/human_eval/master_mapping.csv", encoding="utf-8") as f:
+    with open(os.path.join(input_dir, "master_mapping.csv"), encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
             mapping[row["sample_id"]] = {
@@ -70,14 +72,14 @@ def compute_krippendorff_alpha(sample_ratings, n_categories=5):
         for k in range(n_categories):
             expected_disagreement += n_k[g] * n_k[k] * ((g - k) ** 2)
 
-    expected_disagreement /= (total_pairs - 1)
+    expected_disagreement /= max(total_pairs - 1, 1)
 
     if expected_disagreement == 0:
         return 1.0
     return 1.0 - (observed_disagreement / expected_disagreement)
 
-def execute_analysis():
-    responses, mapping = load_data()
+def execute_analysis(input_dir="data/human_eval"):
+    responses, mapping = load_data(input_dir)
 
     condition_metrics = {}
     semantic_ratings = {}
@@ -139,4 +141,7 @@ def execute_analysis():
         )
 
 if __name__ == "__main__":
-    execute_analysis()
+    parser = argparse.ArgumentParser(description="Analyze human evaluation results")
+    parser.add_argument("--input-dir", default="data/human_eval", help="Input directory")
+    args = parser.parse_args()
+    execute_analysis(input_dir=args.input_dir)
