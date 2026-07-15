@@ -1,11 +1,14 @@
 """Backfill the experiment search index from the hosted database."""
 
 import argparse
+import logging
 import os
 from typing import Any, List
 
 from nightmarenet_server.search.embedder import ExperimentEmbedder, document_from_orm
 from nightmarenet_server.search.index import SearchIndex
+
+logger = logging.getLogger(__name__)
 
 
 def reindex(database_url: str, index_path: str = "", backend: str = "faiss") -> int:
@@ -19,17 +22,20 @@ def reindex(database_url: str, index_path: str = "", backend: str = "faiss") -> 
     try:
         runs: List[Any] = session.query(Run).all()
         for run in runs:
-            experiment = getattr(run, "experiment", None)
-            audit_logs = []
-            if experiment is not None:
-                audit_logs = (
-                    session.query(AuditLog)
-                    .filter(AuditLog.resource_id.in_([run.id, experiment.id]))
-                    .all()
-                )
-            doc = document_from_orm(run, experiment=experiment, audit_logs=audit_logs)
-            index.add(doc.run_id, embedder.embed_run(doc), doc.metadata())
-            count += 1
+            try:
+                experiment = getattr(run, "experiment", None)
+                audit_logs = []
+                if experiment is not None:
+                    audit_logs = (
+                        session.query(AuditLog)
+                        .filter(AuditLog.resource_id.in_([run.id, experiment.id]))
+                        .all()
+                    )
+                doc = document_from_orm(run, experiment=experiment, audit_logs=audit_logs)
+                index.add(doc.run_id, embedder.embed_run(doc), doc.metadata())
+                count += 1
+            except Exception:
+                logger.exception("Failed to index run %s; continuing", getattr(run, "id", ""))
     finally:
         session.close()
     return count

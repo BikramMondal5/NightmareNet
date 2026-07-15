@@ -281,8 +281,8 @@ export function ExperimentList({
 
   useEffect(() => {
     const trimmed = query.trim();
+    setSemanticIds(null);
     if (trimmed.length < 3) {
-      setSemanticIds(null);
       setSemanticPending(false);
       setSemanticError(false);
       return;

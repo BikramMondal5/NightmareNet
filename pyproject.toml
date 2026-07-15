@@ -79,8 +79,8 @@ hosted = [
     "psycopg[binary]>=3.1.0",
 ]
 search = [
-    "sentence-transformers>=3.0.0",
-    "faiss-cpu>=1.8.0",
+    "sentence-transformers>=2.2.0",
+    "faiss-cpu>=1.7.0",
 ]
 adaption = [
     "adaption>=0.1.0",

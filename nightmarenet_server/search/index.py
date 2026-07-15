@@ -1,14 +1,19 @@
 """Persistent vector index for experiment search."""
 
 import json
+import logging
 import os
+import tempfile
+import threading
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
 from nightmarenet_server.search.embedder import EMBEDDING_DIM
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -46,45 +51,44 @@ class SearchIndex:
         self._faiss: Optional[Any] = None
         self._faiss_index: Optional[Any] = None
         self._faiss_ids: List[str] = []
+        self._lock = threading.RLock()
         self._load()
 
     def add(self, run_id: str, embedding: np.ndarray, metadata: Dict[str, Any]) -> None:
         vector = _normalize(np.asarray(embedding, dtype=np.float32))
         if vector.shape != (self.dimension,):
             raise ValueError(f"expected embedding shape {(self.dimension,)}, got {vector.shape}")
-        self._records[run_id] = {"run_id": run_id, "metadata": metadata}
-        self._vectors[run_id] = vector
-        self._rebuild_faiss()
-        self.persist()
+        with self._lock:
+            self._records[run_id] = {"run_id": run_id, "metadata": metadata}
+            self._vectors[run_id] = vector
+            self._rebuild_faiss()
+            self.persist()
 
     def delete(self, run_id: str) -> None:
-        self._records.pop(run_id, None)
-        self._vectors.pop(run_id, None)
-        self._rebuild_faiss()
-        self.persist()
+        with self._lock:
+            self._records.pop(run_id, None)
+            self._vectors.pop(run_id, None)
+            self._rebuild_faiss()
+            self.persist()
 
     def search(self, query_embedding: np.ndarray, top_k: int = 10) -> List[SearchHit]:
-        if not self._vectors:
-            return []
-        query = _normalize(np.asarray(query_embedding, dtype=np.float32))
-        if self._faiss_index is not None:
-            scores, idxs = self._faiss_index.search(
-                query.reshape(1, -1),
-                min(top_k, len(self._faiss_ids)),
-            )
-            hits = []
-            for score, idx in zip(scores[0], idxs[0]):
-                if idx < 0:
-                    continue
-                run_id = self._faiss_ids[int(idx)]
-                hits.append(SearchHit(run_id, float(score), self._records[run_id]["metadata"]))
-            return hits
-        scored = [
-            SearchHit(run_id, float(np.dot(query, vector)), self._records[run_id]["metadata"])
-            for run_id, vector in self._vectors.items()
-        ]
-        scored.sort(key=lambda hit: hit.score, reverse=True)
-        return scored[:top_k]
+        with self._lock:
+            if not self._vectors:
+                return []
+            query = _normalize(np.asarray(query_embedding, dtype=np.float32))
+            if self._faiss_index is not None:
+                scores, idxs = self._faiss_index.search(
+                    query.reshape(1, -1),
+                    min(top_k, len(self._faiss_ids)),
+                )
+                hits = []
+                for score, idx in zip(scores[0], idxs[0]):
+                    if idx < 0:
+                        continue
+                    run_id = self._faiss_ids[int(idx)]
+                    hits.append(SearchHit(run_id, float(score), self._records[run_id]["metadata"]))
+                return hits
+            return self._rank_candidates(query, list(self._vectors.items()), top_k)
 
     def hybrid_search(
         self,
@@ -93,47 +97,95 @@ class SearchIndex:
         top_k: int = 10,
     ) -> List[SearchHit]:
         filters = filters or {}
-        pool = self.search(query_embedding, top_k=max(top_k * 4, top_k))
-        hits = [hit for hit in pool if _matches_filters(hit.metadata, filters)]
-        return hits[:top_k]
+        with self._lock:
+            query = _normalize(np.asarray(query_embedding, dtype=np.float32))
+            candidates = [
+                (run_id, vector)
+                for run_id, vector in self._vectors.items()
+                if _matches_filters(self._records[run_id]["metadata"], filters)
+            ]
+            return self._rank_candidates(query, candidates, top_k)
 
     def persist(self) -> None:
-        payload = {
-            "dimension": self.dimension,
-            "records": self._records,
-            "vectors": {run_id: vector.tolist() for run_id, vector in self._vectors.items()},
-        }
-        (self.path / "index.json").write_text(json.dumps(payload, default=str), encoding="utf-8")
+        with self._lock:
+            payload = {
+                "dimension": self.dimension,
+                "records": self._records,
+                "vectors": {run_id: vector.tolist() for run_id, vector in self._vectors.items()},
+            }
+            target = self.path / "index.json"
+            fd, tmp_name = tempfile.mkstemp(
+                prefix="index.",
+                suffix=".tmp",
+                dir=str(self.path),
+                text=True,
+            )
+            try:
+                with os.fdopen(fd, "w", encoding="utf-8") as tmp:
+                    tmp.write(json.dumps(payload, default=str))
+                    tmp.flush()
+                    os.fsync(tmp.fileno())
+                os.replace(tmp_name, target)
+            except Exception:
+                try:
+                    os.unlink(tmp_name)
+                except OSError:
+                    pass
+                raise
 
     def _load(self) -> None:
-        index_path = self.path / "index.json"
-        if not index_path.exists():
+        with self._lock:
+            index_path = self.path / "index.json"
+            if not index_path.exists():
+                self._rebuild_faiss()
+                return
+            try:
+                payload = json.loads(index_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError, ValueError):
+                logger.exception("Search index could not be loaded; starting with an empty index")
+                self._records = {}
+                self._vectors = {}
+                self._rebuild_faiss()
+                return
+            self.dimension = int(payload.get("dimension", self.dimension))
+            self._records = dict(payload.get("records", {}))
+            self._vectors = {
+                run_id: _normalize(np.asarray(vector, dtype=np.float32))
+                for run_id, vector in payload.get("vectors", {}).items()
+            }
             self._rebuild_faiss()
-            return
-        payload = json.loads(index_path.read_text(encoding="utf-8"))
-        self.dimension = int(payload.get("dimension", self.dimension))
-        self._records = dict(payload.get("records", {}))
-        self._vectors = {
-            run_id: _normalize(np.asarray(vector, dtype=np.float32))
-            for run_id, vector in payload.get("vectors", {}).items()
-        }
-        self._rebuild_faiss()
 
     def _rebuild_faiss(self) -> None:
-        self._faiss_index = None
-        self._faiss_ids = list(self._vectors.keys())
-        if self.backend != "faiss" or not self._faiss_ids:
-            return
-        try:
-            import faiss
-        except ImportError:
-            self._faiss = None
-            return
-        self._faiss = faiss
-        index = faiss.IndexFlatIP(self.dimension)
-        matrix = np.vstack([self._vectors[run_id] for run_id in self._faiss_ids]).astype(np.float32)
-        index.add(matrix)
-        self._faiss_index = index
+        with self._lock:
+            self._faiss_index = None
+            self._faiss_ids = list(self._vectors.keys())
+            if self.backend != "faiss" or not self._faiss_ids:
+                return
+            try:
+                import faiss
+            except ImportError:
+                self._faiss = None
+                return
+            self._faiss = faiss
+            index = faiss.IndexFlatIP(self.dimension)
+            matrix = np.vstack([self._vectors[run_id] for run_id in self._faiss_ids]).astype(
+                np.float32
+            )
+            index.add(matrix)
+            self._faiss_index = index
+
+    def _rank_candidates(
+        self,
+        query: np.ndarray,
+        candidates: List[Tuple[str, np.ndarray]],
+        top_k: int,
+    ) -> List[SearchHit]:
+        scored = [
+            SearchHit(run_id, float(np.dot(query, vector)), self._records[run_id]["metadata"])
+            for run_id, vector in candidates
+        ]
+        scored.sort(key=lambda hit: hit.score, reverse=True)
+        return scored[:top_k]
 
 
 def _lookup_metric(metrics: Dict[str, Any], field: str) -> Optional[float]:

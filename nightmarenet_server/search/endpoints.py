@@ -1,5 +1,6 @@
 """FastAPI endpoint for natural-language experiment search."""
 
+import logging
 import os
 from functools import lru_cache
 from typing import Any, Dict, List, Optional
@@ -19,6 +20,8 @@ except ImportError:
 from nightmarenet_server.search.embedder import ExperimentEmbedder
 from nightmarenet_server.search.index import SearchIndex
 from nightmarenet_server.search.query_parser import parse_query
+
+logger = logging.getLogger(__name__)
 
 if _FASTAPI_AVAILABLE:
 
@@ -64,7 +67,8 @@ def build_search_router() -> Optional[Any]:
             embedding = get_embedder().embed_query(parsed.text)
             hits = get_index().hybrid_search(embedding, filters=filters, top_k=body.top_k)
         except Exception as exc:
-            raise HTTPException(status_code=500, detail=f"search failed: {exc}") from exc
+            logger.exception("Experiment search failed")
+            raise HTTPException(status_code=500, detail="Internal server error.") from exc
         return SearchResponse(
             results=[
                 SearchResult(
