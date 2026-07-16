@@ -72,7 +72,13 @@ class DatasetWrapper:
             kwargs["streaming"] = True
 
         try:
-            raw = load_dataset(**kwargs)
+            if self.dataset_name == "glue":
+                try:
+                    raw = load_dataset("nyu-mll/glue", self.subset)
+                except Exception:
+                    raw = load_dataset("glue", self.subset)
+            else:
+                raw = load_dataset(**kwargs)
         except Exception as exc:
             raise RuntimeError(
                 f"Failed to load dataset '{self.dataset_name}' "
@@ -246,7 +252,8 @@ def load_from_config(config: dict) -> DatasetWrapper:
     dataset_config = config.get("dataset", {})
     return DatasetWrapper(
         dataset_name=dataset_config.get("name", "wikitext"),
-        subset=dataset_config.get("subset", "wikitext-2-raw-v1"),
+        subset=dataset_config.get("config")
+            or dataset_config.get("subset", "wikitext-2-raw-v1"),
         text_column=dataset_config.get("text_column", "text"),
         max_samples=dataset_config.get("max_samples"),
         seed=config.get("seed", 42),

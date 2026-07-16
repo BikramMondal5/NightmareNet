@@ -65,17 +65,20 @@ def _tokenize_dataset(
     text_column: str,
     max_length: int,
     batch_size: int,
+    label_column: str | None = None,
 ) -> DataLoader:
     """Tokenize a dataset and return a DataLoader."""
 
     def tokenize_fn(examples):
-        return tokenizer(
+        tokenized = tokenizer(
             examples[text_column],
             truncation=True,
             padding="max_length",
             max_length=max_length,
-            return_tensors="pt",
         )
+        if label_column is not None and label_column in examples:
+            tokenized["labels"] = examples[label_column]
+        return tokenized
 
     if isinstance(dataset, IterableDataset):
         tokenized = dataset.map(
@@ -326,6 +329,7 @@ class Trainer:
                 if phase == "wake":
                     wake_runner = WakePhase(
                         model=self.model,
+                        model_type=self.model_type,
                         optimizer=self.optimizer,
                         config=self.training_config,
                         device=self.device,
@@ -346,6 +350,7 @@ class Trainer:
                         reference_model=self.reference_model,
                         kl_weight=0.1,
                         scaler=self.scaler,
+                        model_type=self.model_type,
                     )
                     result = dream_runner.run(dream_dataloader, num_epochs=num_epochs)
 
@@ -358,6 +363,7 @@ class Trainer:
                         device=self.device,
                         lr_multiplier=lr_multiplier,
                         scaler=self.scaler,
+                        model_type=self.model_type,
                     )
                     result = nightmare_runner.run(nightmare_dataloader, num_epochs=num_epochs)
 
@@ -367,6 +373,7 @@ class Trainer:
                         config=self.compression_config,
                         device=self.device,
                         scaler=self.scaler,
+                        model_type=self.model_type,
                     )
                     result = compress_runner.run(
                         dataloader=train_dataloader,
