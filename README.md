@@ -2,7 +2,7 @@
 
 # NightmareNet
 
-**Deep Learning Adversarial Network for Image Synthesis**
+**Autonomous Adversarial Robustness Training Platform**
 
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/Adit-Jain-srm/NightmareNet)
 [![Python](https://img.shields.io/badge/Python-3.9+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
@@ -11,7 +11,7 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)](LICENSE)
 [![Last Commit](https://img.shields.io/github/last-commit/Adit-Jain-srm/NightmareNet)](https://github.com/Adit-Jain-srm/NightmareNet)
 
-*A generative adversarial network exploring the boundaries of AI-generated imagery.*
+*A cyclic adversarial training platform that continuously strengthens model robustness through the Wake → Dream → Nightmare → Compress learning cycle.*
 
 </div>
 
@@ -28,7 +28,7 @@
 **The first platform that actively improves model robustness through biologically-grounded training cycles.**
 
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
-[![CI](https://img.shields.io/badge/CI-passing-brightgreen)](.github/workflows/ci.yml)
+[![CI](https://github.com/Adit-Jain-srm/NightmareNet/actions/workflows/ci.yml/badge.svg)](https://github.com/Adit-Jain-srm/NightmareNet/actions/workflows/ci.yml)
 [![Tests](https://img.shields.io/badge/tests-660%2B%20passing-brightgreen)](#testing)
 [![Python](https://img.shields.io/badge/python-3.9%E2%80%933.12-blue)](#installation)
 
