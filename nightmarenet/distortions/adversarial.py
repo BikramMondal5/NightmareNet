@@ -9,13 +9,17 @@ from __future__ import annotations
 
 import logging
 import random
+from typing import Any, Optional
 
+from nightmarenet.distortions.learned import LearnedAdversarialGenerator
 from nightmarenet.utils.validation import validate_strength
 
 logger = logging.getLogger(__name__)
 
 # Cache generators so the fallback MLM and per-cycle examples are reused.
-_LEARNED_CACHE: dict[tuple[str, str, bool, int], object] = {}
+_LEARNED_CACHE: dict[
+    tuple[str, str, bool, int], LearnedAdversarialGenerator
+] = {}
 
 
 def _get_learned_generator(
@@ -25,11 +29,10 @@ def _get_learned_generator(
     strategy: str = "attention",
     cache_enabled: bool = True,
     seed: int = 42,
-    target_model=None,
-    target_tokenizer=None,
-):
+    target_model: Optional[Any] = None,
+    target_tokenizer: Optional[Any] = None,
+) -> LearnedAdversarialGenerator:
     """Return a cached learned generator for one model/strategy combination."""
-    from nightmarenet.distortions.learned import LearnedAdversarialGenerator
 
     key = (model_name, strategy, cache_enabled, seed)
     generator = _LEARNED_CACHE.get(key)

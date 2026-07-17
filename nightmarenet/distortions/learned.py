@@ -377,6 +377,10 @@ class LearnedAdversarialGenerator:
 
         model = self._unwrap_model(self.target_model)
         tokenizer = self._gradient_tokenizer
+        if tokenizer is None:
+            raise RuntimeError(
+                "A target tokenizer is required for gradient substitutions"
+            )
         embedding_matrix = model.get_input_embeddings().weight.detach()
         words = text.split()
         special_ids = set(getattr(tokenizer, "all_special_ids", []) or [])
@@ -444,37 +448,62 @@ class LearnedAdversarialGenerator:
 
         import torch
 
-        mask_token = self._tokenizer.mask_token
+        tokenizer = self._tokenizer
+        if tokenizer is None:
+            logger.debug(
+                "Fallback tokenizer unavailable; returning the original text."
+            )
+            return text
+
+        mask_token = tokenizer.mask_token
+        mask_token_id = tokenizer.mask_token_id
+        if mask_token is None or mask_token_id is None:
+            logger.debug(
+                "Fallback tokenizer has no mask token; returning the original text."
+            )
+            return text
+
         for index in token_indices:
             if not 0 <= index < len(words):
                 continue
+
             masked_words = list(words)
             masked_words[index] = mask_token
-            encoding = self._tokenizer(
+            encoding = tokenizer(
                 " ".join(masked_words),
                 return_tensors="pt",
                 truncation=True,
                 max_length=512,
             )
-            tokens = {key: value.to(self.device) for key, value in encoding.items()}
+            tokens = {
+                key: value.to(self.device) for key, value in encoding.items()
+            }
             with torch.no_grad():
                 outputs = self._model(**tokens)
 
             mask_positions = (
-                tokens["input_ids"] == self._tokenizer.mask_token_id
+                tokens["input_ids"] == mask_token_id
             ).nonzero(as_tuple=True)
             if len(mask_positions[1]) == 0:
                 continue
+
             logits = outputs.logits[0, mask_positions[1][0].item()]
-            for candidate_id in logits.topk(min(10, logits.numel())).indices.tolist():
-                candidate = self._tokenizer.decode(
+            candidate_ids = logits.topk(
+                min(10, logits.numel())
+            ).indices.tolist()
+            for candidate_id in candidate_ids:
+                candidate = tokenizer.decode(
                     [candidate_id],
                     skip_special_tokens=True,
                 )
-                normalised = self._normalise_candidate(candidate, words[index])
+                normalised = self._normalise_candidate(
+                    candidate,
+                    words[index],
+                )
                 if normalised is not None:
                     words[index] = normalised
                     break
+
         return " ".join(words)
 
     def _cache_key(
