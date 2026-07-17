@@ -19,12 +19,20 @@ try:
     from pathlib import Path
 
     from dotenv import load_dotenv
+
     _env_path = Path(__file__).resolve().parents[2] / ".env"
     load_dotenv(_env_path)
 except ImportError:
     pass
 
 from nightmarenet import __version__
+from nightmarenet.distortions.dream import (
+    distort as _apply_dream_distortions,
+)  # noqa: E402
+from nightmarenet.distortions.nightmare import (
+    distort as _apply_nightmare_distortions,
+)  # noqa: E402
+from nightmarenet.utils.telemetry import get_tracer
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +88,7 @@ def _load_persisted_runs() -> None:
     """Load persisted pipeline runs from disk on startup."""
     try:
         from nightmarenet.pipeline_runner import load_persisted_runs
+
         load_persisted_runs()
         logger.info("Loaded persisted pipeline runs from disk")
     except Exception:
@@ -94,6 +103,27 @@ app = FastAPI(
     redoc_url="/redoc",
     on_startup=[_load_persisted_runs],
 )
+
+
+@app.middleware("http")
+async def telemetry_middleware(request: Request, call_next):
+    """Create an OpenTelemetry span for every incoming HTTP request."""
+
+    tracer = get_tracer()
+
+    with tracer.start_as_current_span(f"{request.method} {request.url.path}") as span:
+        span.set_attribute("http.method", request.method)
+        span.set_attribute("http.target", request.url.path)
+
+        try:
+            response = await call_next(request)
+            span.set_attribute("http.status_code", response.status_code)
+            return response
+
+        except Exception as exc:
+            span.record_exception(exc)
+            raise
+
 
 # --- Rate limiting ---
 limiter = Limiter(key_func=get_remote_address)
@@ -143,10 +173,6 @@ register_suggest_routes(app, limiter)
 from nightmarenet.api.data_optimize import register_data_optimize_routes  # noqa: E402
 
 register_data_optimize_routes(app, limiter)
-
-
-from nightmarenet.distortions.dream import distort as _apply_dream_distortions  # noqa: E402
-from nightmarenet.distortions.nightmare import distort as _apply_nightmare_distortions  # noqa: E402
 
 
 def _char_similarity(a: str, b: str) -> float:
@@ -337,26 +363,20 @@ async def evaluate_robustness(
             )
 
             scores["dream"][str(strength)] = {
-                "similarity": round(
-                    _char_similarity(body.text, dream_result), 4
-                ),
-                "length_ratio": round(
-                    len(dream_result) / max(len(body.text), 1), 4
-                ),
+                "similarity": round(_char_similarity(body.text, dream_result), 4),
+                "length_ratio": round(len(dream_result) / max(len(body.text), 1), 4),
             }
             scores["nightmare"][str(strength)] = {
-                "similarity": round(
-                    _char_similarity(body.text, nightmare_result), 4
-                ),
+                "similarity": round(_char_similarity(body.text, nightmare_result), 4),
                 "length_ratio": round(
                     len(nightmare_result) / max(len(body.text), 1), 4
                 ),
             }
 
         # Summary
-        avg_dream_sim = sum(
-            v["similarity"] for v in scores["dream"].values()
-        ) / max(len(scores["dream"]), 1)
+        avg_dream_sim = sum(v["similarity"] for v in scores["dream"].values()) / max(
+            len(scores["dream"]), 1
+        )
         avg_nightmare_sim = sum(
             v["similarity"] for v in scores["nightmare"].values()
         ) / max(len(scores["nightmare"]), 1)
@@ -466,22 +486,30 @@ async def preview_training_config(
 
         for cycle in range(1, body.num_cycles + 1):
             if body.wake_epochs > 0:
-                phases.append(TrainingPhasePreview(
-                    cycle=cycle, phase="wake", epochs=body.wake_epochs,
-                    learning_rate=lr,
-                    description="Supervised learning on clean data.",
-                ))
+                phases.append(
+                    TrainingPhasePreview(
+                        cycle=cycle,
+                        phase="wake",
+                        epochs=body.wake_epochs,
+                        learning_rate=lr,
+                        description="Supervised learning on clean data.",
+                    )
+                )
                 total_epochs += body.wake_epochs
 
             if body.dream_epochs > 0:
-                phases.append(TrainingPhasePreview(
-                    cycle=cycle, phase="dream", epochs=body.dream_epochs,
-                    learning_rate=lr,
-                    description=(
-                        f"Mild distortions (strength={body.dream_strength}) "
-                        f"with KL weight={body.kl_weight}."
-                    ),
-                ))
+                phases.append(
+                    TrainingPhasePreview(
+                        cycle=cycle,
+                        phase="dream",
+                        epochs=body.dream_epochs,
+                        learning_rate=lr,
+                        description=(
+                            f"Mild distortions (strength={body.dream_strength}) "
+                            f"with KL weight={body.kl_weight}."
+                        ),
+                    )
+                )
                 total_epochs += body.dream_epochs
 
             if body.nightmare_epochs > 0:
@@ -492,18 +520,27 @@ async def preview_training_config(
                 )
                 if body.use_learned_adversarial:
                     desc += " Learned adversarial enabled."
-                phases.append(TrainingPhasePreview(
-                    cycle=cycle, phase="nightmare", epochs=body.nightmare_epochs,
-                    learning_rate=nlr, description=desc,
-                ))
+                phases.append(
+                    TrainingPhasePreview(
+                        cycle=cycle,
+                        phase="nightmare",
+                        epochs=body.nightmare_epochs,
+                        learning_rate=nlr,
+                        description=desc,
+                    )
+                )
                 total_epochs += body.nightmare_epochs
 
             # Compress phase (1 epoch for pruning + fine-tuning)
-            phases.append(TrainingPhasePreview(
-                cycle=cycle, phase="compress", epochs=1,
-                learning_rate=lr,
-                description=f"Magnitude pruning at ratio={body.pruning_ratio}, then fine-tune.",
-            ))
+            phases.append(
+                TrainingPhasePreview(
+                    cycle=cycle,
+                    phase="compress",
+                    epochs=1,
+                    learning_rate=lr,
+                    description=f"Magnitude pruning at ratio={body.pruning_ratio}, then fine-tune.",
+                )
+            )
             total_epochs += 1
 
         # Recommendations
@@ -603,13 +640,17 @@ async def compare_distortions(
         seed = body.seed
 
         # Baseline distortions
-        dream_base = _apply_dream_distortions(body.text, body.baseline_strength, seed=seed)
+        dream_base = _apply_dream_distortions(
+            body.text, body.baseline_strength, seed=seed
+        )
         nightmare_base = _apply_nightmare_distortions(
             body.text, body.baseline_strength, seed=seed
         )
 
         # Challenge distortions
-        dream_challenge = _apply_dream_distortions(body.text, body.challenge_strength, seed=seed)
+        dream_challenge = _apply_dream_distortions(
+            body.text, body.challenge_strength, seed=seed
+        )
         nightmare_challenge = _apply_nightmare_distortions(
             body.text, body.challenge_strength, seed=seed
         )
@@ -632,10 +673,13 @@ async def compare_distortions(
 
         # Resilience = how much similarity drops between baseline and challenge
         dream_drop = max(
-            dream_details["baseline"].similarity - dream_details["challenge"].similarity, 0.0
+            dream_details["baseline"].similarity
+            - dream_details["challenge"].similarity,
+            0.0,
         )
         nightmare_drop = max(
-            nightmare_details["baseline"].similarity - nightmare_details["challenge"].similarity,
+            nightmare_details["baseline"].similarity
+            - nightmare_details["challenge"].similarity,
             0.0,
         )
         avg_drop = (dream_drop + nightmare_drop) / 2
@@ -706,12 +750,8 @@ async def interactive_demo(
             body.text, nightmare_strength, seed=body.seed
         )
 
-        dream_sim = round(
-            _char_similarity(body.text, dream_result), 4
-        )
-        nightmare_sim = round(
-            _char_similarity(body.text, nightmare_result), 4
-        )
+        dream_sim = round(_char_similarity(body.text, dream_result), 4)
+        nightmare_sim = round(_char_similarity(body.text, nightmare_result), 4)
         delta = round(dream_sim - nightmare_sim, 4)
 
         word_count = len(body.text.split())
@@ -746,8 +786,7 @@ async def interactive_demo(
                 distorted_text=nightmare_result,
                 similarity=nightmare_sim,
                 length_ratio=round(
-                    len(nightmare_result)
-                    / max(len(body.text), 1),
+                    len(nightmare_result) / max(len(body.text), 1),
                     4,
                 ),
             ),
@@ -903,21 +942,30 @@ async def create_pipeline(
         "tracking": {"backend": "none"},
         "seed": 42,
         "notifications": {
-            "webhooks": [
-                {"url": wh.url, "events": wh.events} for wh in body.webhooks
-            ] if body.webhooks else [],
+            "webhooks": (
+                [{"url": wh.url, "events": wh.events} for wh in body.webhooks]
+                if body.webhooks
+                else []
+            ),
         },
     }
 
-    pipeline = Pipeline(config=config)
-    runner = PipelineRunner(pipeline)
-    try:
-        register_runner(runner)
-    except RuntimeError as e:
-        raise HTTPException(
-            status_code=503,
-            detail=str(e) or "Pipeline runner registry is at capacity",
-        ) from e
+    tracer = get_tracer()
+
+    with tracer.start_as_current_span("pipeline.create"):
+        pipeline = Pipeline(config=config)
+        runner = PipelineRunner(pipeline)
+
+        span = tracer.get_current_span()
+
+        span.set_attribute("pipeline.source_type", body.source_type)
+        try:
+            register_runner(runner)
+        except RuntimeError as e:
+            raise HTTPException(
+                status_code=503,
+                detail=str(e) or "Pipeline runner registry is at capacity",
+            ) from e
 
     # Build ingest kwargs
     ingest_kwargs: dict[str, Any] = {}
@@ -937,7 +985,11 @@ async def create_pipeline(
     else:
         raise HTTPException(400, f"Unknown source_type: {body.source_type}")
 
-    runner.start(**ingest_kwargs)
+    tracer = get_tracer()
+
+    with tracer.start_as_current_span("pipeline.run"):
+        runner.start(**ingest_kwargs)
+
     return PipelineStatusResponse(**runner.status())
 
 
@@ -990,9 +1042,7 @@ async def get_pipeline_report(run_id: str):
 
     metrics = runner.pipeline.metrics
     if metrics.report_md is None:
-        raise HTTPException(
-            400, "Pipeline has not completed evaluation yet."
-        )
+        raise HTTPException(400, "Pipeline has not completed evaluation yet.")
 
     return PipelineReportResponse(
         run_id=run_id,
@@ -1042,7 +1092,7 @@ async def test_webhook_endpoint(
             detail=(
                 "Invalid webhook URL. Must be an allowed HTTPS domain"
                 " and not resolve to an internal IP."
-            )
+            ),
         )
 
     # Temporary configuration dict containing the target webhook
@@ -1083,9 +1133,7 @@ async def test_webhook_endpoint(
                 }
             )
         elif body.event_type == "deploy":
-            details.update(
-                {"mode": "full", "output_path": "results/benchmark-v1.json"}
-            )
+            details.update({"mode": "full", "output_path": "results/benchmark-v1.json"})
 
         trigger_webhook(
             temp_config,
@@ -1147,6 +1195,7 @@ async def websocket_pipeline_progress(websocket: WebSocket, run_id: str):
         except Exception:
             pass
 
+
 @app.get("/api/v1/compliance/report/{run_id}", tags=["Compliance"])
 def get_compliance_report(run_id: str):
     """Return a generated compliance report."""
@@ -1169,6 +1218,7 @@ def get_compliance_report(run_id: str):
         )
 
     return json.loads(report_path.read_text(encoding="utf-8"))
+
 
 @app.get("/api/v1/compliance/reports", tags=["Compliance"])
 def list_compliance_reports():
