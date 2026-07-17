@@ -21,7 +21,6 @@ from transformers import AutoModelForMaskedLM, AutoTokenizer
 
 from nightmarenet.distortions.learned import LearnedAdversarialGenerator
 
-
 DEFAULT_SAMPLES = [
     "The film was a triumph of restraint and vision.",
     "The customer service team solved the problem quickly.",
@@ -55,9 +54,7 @@ def parse_args() -> argparse.Namespace:
         default="distilbert-base-uncased",
         help="Masked language model used as both target and attention fallback.",
     )
-    parser.add_argument(
-        "--device", default="cuda" if torch.cuda.is_available() else "cpu"
-    )
+    parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--strength", type=float, default=0.7)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--repeats", type=int, default=1)
