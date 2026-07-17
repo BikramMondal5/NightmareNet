@@ -481,10 +481,11 @@ class LearnedAdversarialGenerator:
 
         return " ".join(words)
 
-    def _cache_key(self, text: str, strength: float, strategy: str) -> tuple[int, str, float, str]:
-        return (self.cycle_id, text, round(float(strength), 8), strategy)
+    def _cache_key(self, text: str, strength: float, strategy: str) -> tuple:
+        model_id = id(self._target_model) if self._target_model else 0
+        return (self.cycle_id, model_id, text, round(float(strength), 8), strategy)
 
-    def _cache_result(self, key: tuple[int, str, float, str], value: str) -> None:
+    def _cache_result(self, key: tuple, value: str) -> None:
         if not self.cache_enabled:
             return
         self._cache[key] = value
@@ -561,6 +562,9 @@ class LearnedAdversarialGenerator:
                 )
                 target_indices = [index for index, _ in ranked[:num_to_replace]]
                 result = self._attention_replace(text, target_indices, rng)
+                fallback_key = self._cache_key(text, actual_strength, "attention_fallback")
+                self._cache_result(fallback_key, result)
+                return result
         else:
             importance = self._attention_importance(text, rng)
             ranked = sorted(
