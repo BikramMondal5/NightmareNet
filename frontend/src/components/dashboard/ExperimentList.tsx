@@ -407,7 +407,7 @@ export function ExperimentList({
       align: "right",
       cell: (r) =>
         r.robustness === 0 ? (
-          <span className="text-slate-600">—</span>
+          <span className="text-slate-300">—</span>
         ) : (
           <span
             className={[

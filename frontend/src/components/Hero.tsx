@@ -127,7 +127,7 @@ export default function Hero() {
           <span className="text-neural animate-cursor-blink ml-0.5">|</span>
         </p>
         <span className="sr-only">Dream, Nightmare, Compress, and Evolve.</span>
-        <p className="text-sm text-muted mt-3 max-w-lg mx-auto">
+        <p className="text-sm text-slate-400 mt-3 max-w-lg mx-auto">
           Force neural networks to learn invariant structures — not memorize patterns.
         </p>
       </motion.div>
@@ -188,7 +188,7 @@ export default function Hero() {
             <p className="text-lg font-bold font-mono text-gradient-neural">
               {stat.value}
             </p>
-            <p className="text-[10px] text-muted uppercase tracking-wider mt-0.5">
+            <p className="text-[10px] text-slate-400 uppercase tracking-wider mt-0.5">
               {stat.label}
             </p>
           </div>
@@ -202,10 +202,10 @@ export default function Hero() {
         transition={{ delay: 1.6 }}
         aria-hidden="true" className="absolute bottom-8 z-10 flex flex-col items-center gap-2 animate-smooth-bounce"
       >
-        <span className="text-[10px] font-mono text-muted uppercase tracking-widest">
+        <span className="text-[10px] font-mono text-slate-400 uppercase tracking-widest">
           Scroll
         </span>
-        <ChevronDown aria-hidden="true" className="w-4 h-4 text-muted" />
+        <ChevronDown aria-hidden="true" className="w-4 h-4 text-slate-400" />
       </motion.div>
     </section>
   );

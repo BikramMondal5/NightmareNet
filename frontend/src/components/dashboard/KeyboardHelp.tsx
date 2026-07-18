@@ -56,7 +56,7 @@ export function KeyboardHelp({ open, onClose }: KeyboardHelpProps) {
             <div className="max-h-[60vh] space-y-5 overflow-y-auto px-5 py-4">
               {SHORTCUT_GROUPS.map((group) => (
                 <div key={group.label}>
-                  <p className="pb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-600">
+                  <p className="pb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-300">
                     {group.label}
                   </p>
                   <ul className="space-y-1.5">

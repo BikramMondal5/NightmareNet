@@ -145,7 +145,7 @@ export function OnboardingOverlay({ onNavigate }: OnboardingOverlayProps) {
                       {current.title}
                     </h2>
                     <p className="text-sm leading-relaxed text-slate-400">{current.body}</p>
-                    <p className="pt-1.5 text-[10px] uppercase tracking-widest text-slate-600">
+                    <p className="pt-1.5 text-[10px] uppercase tracking-widest text-slate-300">
                       Find it in: <span className="text-slate-400">{current.highlight}</span>
                     </p>
                   </div>
