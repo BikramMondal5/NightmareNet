@@ -325,15 +325,16 @@ def _warn_unknown_keys(user_config: dict) -> None:
     unknown_keys = set(user_config.keys()) - valid_top_level_keys
 
     for unknown_key in unknown_keys:
-        suggestion = _find_closest_key(unknown_key, list(valid_top_level_keys))
+        key_str = str(unknown_key)
+        suggestion = _find_closest_key(key_str, list(valid_top_level_keys))
         if suggestion:
             logger.warning(
                 "Unknown config key '%s' - did you mean '%s'?",
-                unknown_key,
+                key_str,
                 suggestion,
             )
         else:
-            logger.warning("Unknown config key '%s'", unknown_key)
+            logger.warning("Unknown config key '%s'", key_str)
 
 
 def load_config(path: str) -> dict:
