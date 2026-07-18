@@ -16,8 +16,9 @@ import uuid
 from pathlib import Path
 from typing import Any, Callable, Optional
 
-from nightmarenet.pipeline import Pipeline
 from nightmarenet.exceptions import PipelinePhaseError
+from nightmarenet.pipeline import Pipeline
+
 logger = logging.getLogger(__name__)
 
 
@@ -99,8 +100,6 @@ class PipelineRunner:
                 _update_run_state(self.id, "failed", time.time(), self.pipeline.metrics.to_dict())
             except Exception:
                 logger.exception("Pipeline run %s failed unexpectedly", self.id)
-            except Exception:
-                logger.exception("Pipeline run %s failed", self.id)
                 _update_run_state(self.id, "failed", time.time(), self.pipeline.metrics.to_dict())
 
         self._thread = threading.Thread(target=_run, daemon=True, name=f"pipeline-{self.id}")

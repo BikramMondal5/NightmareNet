@@ -20,13 +20,13 @@ from nightmarenet.data.ingest import DataIngestor
 from nightmarenet.distortions.text import apply_text_distortions
 from nightmarenet.evaluation.evaluator import Evaluator
 from nightmarenet.evaluation.metrics import evaluate_cycle, quick_robustness_score
+from nightmarenet.exceptions import PipelinePhaseError
 from nightmarenet.training.callbacks import CallbackManager, TrainingEvent
 from nightmarenet.training.trainer import Trainer, _tokenize_dataset
 from nightmarenet.utils.config import load_config
 from nightmarenet.utils.telemetry import record_metric, setup_telemetry, trace_phase
 from nightmarenet.utils.tracking import create_tracker_from_config
 from nightmarenet.utils.webhooks import trigger_webhook
-from nightmarenet.exceptions import HubUploadError, PipelinePhaseError
 
 logger = logging.getLogger(__name__)
 
@@ -913,7 +913,7 @@ class Pipeline:
                             # Extract metadata from comparison results and configuration
                             pipeline_metadata = {
                                 "robustness_score": float(comparison.get("robustness_score", 0.0)),
-                                "training_config": self.config
+                                "training_config": self.config,
                             }
 
                             # Save the metadata temporarily inside the exported directory
@@ -925,7 +925,7 @@ class Pipeline:
                             push_model(
                                 model_dir=tmp_dir,
                                 repo_id=auto_push_repo,
-                                metadata_path=metadata_file_path
+                                metadata_path=metadata_file_path,
                             )
                     except Exception as upload_err:
                         logger.error("Push failed: %s", upload_err)
@@ -1033,6 +1033,7 @@ class Pipeline:
             self.export(export_dir)
 
         return comparison
+
 
 def create_pipeline_from_config(
     config_path: str = "configs/default.yaml",
