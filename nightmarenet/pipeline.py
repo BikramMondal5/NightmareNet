@@ -912,7 +912,9 @@ class Pipeline:
 
                             # Extract metadata from comparison results and configuration
                             pipeline_metadata = {
-                                "robustness_score": float(comparison.get("robustness_score", 0.0)),
+                                "robustness_score": float(
+                                    robustness_delta if robustness_delta is not None else 0.0
+                                ),
                                 "training_config": self.config,
                             }
 
