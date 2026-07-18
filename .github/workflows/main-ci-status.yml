@@ -2,7 +2,7 @@ name: Main CI Status
 
 # Tracks the health of CI on main. When main goes red, every open PR starts
 # failing too (PR checks run against a merge with current main), which confuses
-# contributors. This workflow opens a pinned status issue while main is red and
+# contributors. This workflow opens a ci-status issue while main is red and
 # closes it when main recovers, so contributors can self-triage.
 
 on:
@@ -13,6 +13,11 @@ on:
 
 permissions:
   issues: write
+
+# Serialize runs so two CI completions can't race and create duplicate issues.
+concurrency:
+  group: main-ci-status
+  cancel-in-progress: false
 
 jobs:
   update-status-issue:
