@@ -482,7 +482,7 @@ class LearnedAdversarialGenerator:
         return " ".join(words)
 
     def _cache_key(self, text: str, strength: float, strategy: str) -> tuple:
-        model_id = id(self._target_model) if self._target_model else 0
+        model_id = id(self.target_model) if self.target_model else 0
         return (self.cycle_id, model_id, text, round(float(strength), 8), strategy)
 
     def _cache_result(self, key: tuple, value: str) -> None:
