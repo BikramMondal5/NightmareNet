@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 import os
 from copy import deepcopy
-from typing import Any
+from typing import Any, Union
 
 import yaml
 
@@ -17,16 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 def _levenshtein_distance(s1: str, s2: str) -> int:
-    """Compute the Levenshtein distance between two strings.
-
-    Args:
-        s1: First string.
-        s2: Second string.
-
-    Returns:
-        The minimum number of single-character edits (insertions, deletions,
-        or substitutions) required to change s1 into s2.
-    """
+    """Compute the Levenshtein distance between two strings."""
     if len(s1) < len(s2):
         return _levenshtein_distance(s2, s1)
 
@@ -46,17 +37,8 @@ def _levenshtein_distance(s1: str, s2: str) -> int:
     return previous_row[-1]
 
 
-def _find_closest_key(key: str, candidates: list[str], max_distance: int = 2) -> str | None:
-    """Find the closest matching key from candidates using Levenshtein distance.
-
-    Args:
-        key: The unknown key to find a suggestion for.
-        candidates: List of valid keys to compare against.
-        max_distance: Maximum edit distance to consider a match.
-
-    Returns:
-        The closest matching key if within max_distance, otherwise None.
-    """
+def _find_closest_key(key: str, candidates: list[str], max_distance: int = 2) -> Union[str, None]:
+    """Find the closest matching key from candidates using Levenshtein distance."""
     closest = None
     min_dist = max_distance + 1
 
@@ -320,11 +302,7 @@ def validate_config(config: dict) -> list[str]:
 
 
 def _warn_unknown_keys(user_config: dict) -> None:
-    """Log warnings for unrecognized top-level configuration keys.
-
-    Args:
-        user_config: User-provided configuration dictionary.
-    """
+    """Log warnings for unrecognized top-level configuration keys."""
     valid_top_level_keys = set(DEFAULT_CONFIG.keys())
     unknown_keys = set(user_config.keys()) - valid_top_level_keys
 
