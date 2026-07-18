@@ -124,8 +124,15 @@ app.add_middleware(APIKeyMiddleware)  # type: ignore[arg-type]
 
 # --- CORS ---
 _cors_origins = [
-    o.strip() for o in os.environ.get("NIGHTMARENET_CORS_ORIGINS", "*").split(",") if o.strip()
+    o.strip()
+    for o in os.environ.get("NIGHTMARENET_CORS_ORIGINS", "*").split(",")
+    if o.strip()
 ]
+if not _cors_origins:
+    logger.warning(
+        "CORS not configured - cross-origin requests will be blocked. "
+        "Set NIGHTMARENET_CORS_ORIGINS environment variable to allow specific origins."
+    )
 app.add_middleware(
     CORSMiddleware,  # type: ignore[arg-type]
     allow_origins=_cors_origins,

@@ -407,3 +407,10 @@ class TestAPICORSConfig:
         raw = os.environ.get("NIGHTMARENET_CORS_ORIGINS", "*")
         origins = [o.strip() for o in raw.split(",") if o.strip()]
         assert origins == ["http://a.com", "http://b.com"]
+
+    def test_cors_default_empty(self, monkeypatch):
+        """CORS defaults to wildcard when env var is unset."""
+        monkeypatch.delenv("NIGHTMARENET_CORS_ORIGINS", raising=False)
+        raw = os.environ.get("NIGHTMARENET_CORS_ORIGINS", "*")
+        origins = [o.strip() for o in raw.split(",") if o.strip()]
+        assert origins == ["*"]

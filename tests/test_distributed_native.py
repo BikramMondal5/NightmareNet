@@ -8,6 +8,7 @@ import pytest
 import torch
 import torch.nn as nn
 
+import nightmarenet
 from nightmarenet.distributed.checkpoint import (
     AtomicCheckpointer,
     check_version_compatibility,
@@ -109,34 +110,37 @@ def test_apply_phase_strategy(mock_logger):
 
 @mock.patch("nightmarenet.distributed.ddp_wrapper.dist")
 @mock.patch("nightmarenet.distributed.ddp_wrapper.torch.cuda")
-def test_ddp_wrapper_setup_with_torchrun(mock_cuda, mock_dist):
+def test_ddp_wrapper_setup_with_torchrun(mock_cuda, mock_dist, monkeypatch):
     """Test DDP initialization when launched via torchrun."""
     mock_dist.is_available.return_value = True
     mock_dist.is_initialized.return_value = False
     mock_dist.get_rank.return_value = 0
     mock_cuda.is_available.return_value = True
 
-    with mock.patch.dict(os.environ, {"RANK": "0", "WORLD_SIZE": "2", "LOCAL_RANK": "0"}):
-        wrapper = DDPWrapper(backend="nccl")
-        wrapper.setup()
+    monkeypatch.setenv("RANK", "0")
+    monkeypatch.setenv("WORLD_SIZE", "2")
+    monkeypatch.setenv("LOCAL_RANK", "0")
+    wrapper = DDPWrapper(backend="nccl")
+    wrapper.setup()
 
-        mock_dist.init_process_group.assert_called_once_with(backend="nccl")
-        mock_cuda.set_device.assert_called_once_with(0)
-        assert wrapper.is_initialized is True
+    mock_dist.init_process_group.assert_called_once_with(backend="nccl")
+    mock_cuda.set_device.assert_called_once_with(0)
+    assert wrapper.is_initialized is True
 
 
 @mock.patch("nightmarenet.distributed.ddp_wrapper.dist")
-def test_ddp_wrapper_setup_without_torchrun(mock_dist):
+def test_ddp_wrapper_setup_without_torchrun(mock_dist, monkeypatch):
     """Test DDP initialization when not launched via torchrun."""
     mock_dist.is_available.return_value = True
     mock_dist.is_initialized.return_value = False
 
-    with mock.patch.dict(os.environ, {}, clear=True):
-        wrapper = DDPWrapper()
-        wrapper.setup()
+    monkeypatch.delenv("RANK", raising=False)
+    monkeypatch.delenv("WORLD_SIZE", raising=False)
+    wrapper = DDPWrapper()
+    wrapper.setup()
 
-        mock_dist.init_process_group.assert_not_called()
-        assert wrapper.is_initialized is False
+    mock_dist.init_process_group.assert_not_called()
+    assert wrapper.is_initialized is False
 
 
 @mock.patch("nightmarenet.distributed.ddp_wrapper.dist")
@@ -153,7 +157,7 @@ def test_ddp_wrapper_setup_dist_not_available(mock_dist):
 
 @mock.patch("nightmarenet.distributed.ddp_wrapper.dist")
 @mock.patch("nightmarenet.distributed.ddp_wrapper.torch")
-def test_ddp_wrapper_wrap_model(mock_torch, mock_dist):
+def test_ddp_wrapper_wrap_model(mock_torch, mock_dist, monkeypatch):
     """Test model wrapping with DDP."""
     mock_dist.is_initialized.return_value = True
     mock_torch.cuda.is_available.return_value = True
@@ -162,14 +166,16 @@ def test_ddp_wrapper_wrap_model(mock_torch, mock_dist):
     wrapper = DDPWrapper()
     wrapper.is_initialized = True
 
-    with mock.patch.dict(os.environ, {"LOCAL_RANK": "0"}):
-        with mock.patch.object(model, "to", return_value=model):
-            with mock.patch(
-                "nightmarenet.distributed.ddp_wrapper.DistributedDataParallel"
-            ) as mock_ddp:
-                mock_ddp.return_value = "wrapped_model"
-                result = wrapper.wrap_model(model)
-                assert result == "wrapped_model"
+    monkeypatch.setenv("LOCAL_RANK", "0")
+    with mock.patch.object(model, "to", return_value=model) as mock_to:
+        with mock.patch(
+            "nightmarenet.distributed.ddp_wrapper.DistributedDataParallel"
+        ) as mock_ddp:
+            mock_ddp.return_value = "wrapped_model"
+            result = wrapper.wrap_model(model)
+            assert result == "wrapped_model"
+            mock_to.assert_called_once_with(0)
+            mock_ddp.assert_called_once_with(model, device_ids=[0])
 
 
 @mock.patch("nightmarenet.distributed.ddp_wrapper.dist")
@@ -323,7 +329,12 @@ def test_checkpoint_missing_model_weights(tmp_path):
     checkpoint_dir.mkdir()
     (checkpoint_dir / ".complete").write_text("complete")
     (checkpoint_dir / "metadata.json").write_text(
-        '{"version": "0.2.0", "cycle": 1, "phase": "wake", "config_hash": "abc"}'
+        json.dumps({
+            "version": nightmarenet.__version__,
+            "cycle": 1,
+            "phase": "wake",
+            "config_hash": "abc",
+        })
     )
 
     with pytest.raises(ValueError, match="does not contain any valid model weights"):
@@ -336,7 +347,12 @@ def test_checkpoint_missing_optimizer_state(tmp_path):
     checkpoint_dir.mkdir()
     (checkpoint_dir / ".complete").write_text("complete")
     (checkpoint_dir / "metadata.json").write_text(
-        '{"version": "0.2.0", "cycle": 1, "phase": "wake", "config_hash": "abc"}'
+        json.dumps({
+            "version": nightmarenet.__version__,
+            "cycle": 1,
+            "phase": "wake",
+            "config_hash": "abc",
+        })
     )
     (checkpoint_dir / "model.pt").write_text("dummy")
 
@@ -356,7 +372,7 @@ def test_checkpoint_checksum_mismatch(tmp_path):
 
     # Create metadata with wrong checksum
     metadata = {
-        "version": "0.2.0",
+        "version": nightmarenet.__version__,
         "cycle": 1,
         "phase": "wake",
         "config_hash": "abc",
@@ -403,6 +419,11 @@ def test_checkpoint_save_overwrites_existing(tmp_path):
 
     assert target_dir1 == target_dir2
     assert os.path.exists(target_dir2)
+
+    metadata_path = os.path.join(target_dir2, "metadata.json")
+    with open(metadata_path) as f:
+        meta = json.load(f)
+    assert meta["metrics"]["loss"] == 0.3
 
 
 # ============================================================================
