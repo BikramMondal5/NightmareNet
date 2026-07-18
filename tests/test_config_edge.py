@@ -133,6 +133,11 @@ class TestValidateConfig:
         errors = validate_config(cfg)
         assert isinstance(errors, list)
 
+    def test_validation_error_includes_dotted_path(self):
+        cfg = _deep_merge(DEFAULT_CONFIG, {"training": {"batch_size": -1}})
+        errors = validate_config(cfg)
+        assert any("training.batch_size" in e for e in errors)
+
 
 class TestLevenshteinDistance:
     """Tests for the Levenshtein distance utility."""
