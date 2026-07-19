@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 jobs:
-    test:
+  test:
     name: Tests & Lint (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
 
