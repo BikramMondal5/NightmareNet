@@ -370,7 +370,7 @@ def robustness_score(
 
         _trapz_fn = getattr(np, "trapezoid", None)
         if _trapz_fn is None:
-            _trapz_fn = np.trapz
+            _trapz_fn = np.trapz  # type: ignore[attr-defined]
         auc = float(_trapz_fn(accuracies, strengths))
 
         return {

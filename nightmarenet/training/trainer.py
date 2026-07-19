@@ -283,7 +283,7 @@ class Trainer:
         self.lr_scheduler = None
 
         # Reference model for KL regularization (created after wake phase)
-        self.reference_model = None
+        self.reference_model: Optional[torch.nn.Module] = None
 
         # Training history
         self.history: list[dict] = []
