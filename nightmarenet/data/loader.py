@@ -245,6 +245,7 @@ def load_from_config(config: dict) -> Any:
     model_type = config.get("model", {}).get("type", "")
     if model_type == "image_classification":
         import os
+
         import torch
         import torchvision.datasets as datasets
         import torchvision.transforms as transforms
@@ -259,28 +260,52 @@ def load_from_config(config: dict) -> Any:
 
         if "cifar10" in name:
             try:
-                train_dataset = datasets.CIFAR10(root="./data", train=True, download=True, transform=transform)
-                test_dataset = datasets.CIFAR10(root="./data", train=False, download=True, transform=transform)
+                train_dataset = datasets.CIFAR10(
+                    root="./data", train=True, download=True, transform=transform
+                )
+                test_dataset = datasets.CIFAR10(
+                    root="./data", train=False, download=True, transform=transform
+                )
             except Exception as e:
                 logger.warning("Failed to load CIFAR-10, falling back to FakeData: %s", e)
-                train_dataset = datasets.FakeData(size=100, image_size=(3, 32, 32), num_classes=10, transform=transform)
-                test_dataset = datasets.FakeData(size=20, image_size=(3, 32, 32), num_classes=10, transform=transform)
+                train_dataset = datasets.FakeData(
+                    size=100, image_size=(3, 32, 32), num_classes=10, transform=transform
+                )
+                test_dataset = datasets.FakeData(
+                    size=20, image_size=(3, 32, 32), num_classes=10, transform=transform
+                )
         elif "imagenet" in name:
             path = dataset_config.get("path", "./data/imagenet_subset")
             if os.path.isdir(path):
-                train_dataset = datasets.ImageFolder(root=os.path.join(path, "train"), transform=transform)
-                test_dataset = datasets.ImageFolder(root=os.path.join(path, "val"), transform=transform)
+                train_dataset = datasets.ImageFolder(
+                    root=os.path.join(path, "train"), transform=transform
+                )
+                test_dataset = datasets.ImageFolder(
+                    root=os.path.join(path, "val"), transform=transform
+                )
             else:
-                logger.warning("ImageNet subset path %s not found. Falling back to FakeData.", path)
-                train_dataset = datasets.FakeData(size=100, image_size=(3, 224, 224), num_classes=1000, transform=transform)
-                test_dataset = datasets.FakeData(size=20, image_size=(3, 224, 224), num_classes=1000, transform=transform)
+                logger.warning(
+                    "ImageNet subset path %s not found. Falling back to FakeData.", path
+                )
+                train_dataset = datasets.FakeData(
+                    size=100, image_size=(3, 224, 224), num_classes=1000, transform=transform
+                )
+                test_dataset = datasets.FakeData(
+                    size=20, image_size=(3, 224, 224), num_classes=1000, transform=transform
+                )
         else:
             logger.warning("Unknown dataset %s. Falling back to FakeData.", name)
-            train_dataset = datasets.FakeData(size=100, image_size=(3, 32, 32), num_classes=10, transform=transform)
-            test_dataset = datasets.FakeData(size=20, image_size=(3, 32, 32), num_classes=10, transform=transform)
+            train_dataset = datasets.FakeData(
+                size=100, image_size=(3, 32, 32), num_classes=10, transform=transform
+            )
+            test_dataset = datasets.FakeData(
+                size=20, image_size=(3, 32, 32), num_classes=10, transform=transform
+            )
 
         if max_samples is not None:
-            train_dataset = torch.utils.data.Subset(train_dataset, list(range(min(max_samples, len(train_dataset)))))
+            train_dataset = torch.utils.data.Subset(
+                train_dataset, list(range(min(max_samples, len(train_dataset))))
+            )
             test_limit = min(max_samples // 5 or 1, len(test_dataset))
             test_dataset = torch.utils.data.Subset(test_dataset, list(range(test_limit)))
 

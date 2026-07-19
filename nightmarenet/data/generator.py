@@ -493,7 +493,6 @@ class DistortedVisionDataset(torch.utils.data.Dataset):
         pixel_values = item["pixel_values"]
         labels = item["labels"]
 
-        import torch
         from nightmarenet.distortions.registry import get_vision_registry
         registry = get_vision_registry()
 
@@ -513,7 +512,8 @@ class DistortedVisionDataset(torch.utils.data.Dataset):
                     engines.append(name)
 
         actual_strength = self.generator.strength
-        if self.phase == "nightmare" and getattr(self.generator, "strength_schedule", "uniform") != "uniform":
+        sched = getattr(self.generator, "strength_schedule", "uniform")
+        if self.phase == "nightmare" and sched != "uniform":
             strengths = self.generator._compute_strengths(len(self.dataset))
             if idx < len(strengths):
                 actual_strength = strengths[idx]
@@ -524,6 +524,8 @@ class DistortedVisionDataset(torch.utils.data.Dataset):
                 fn = registry._engines.get(name)
                 if fn is not None and hasattr(fn, "__self__"):
                     fn.__self__.model = self.generator.target_model
-            distorted = registry.apply(name, distorted, strength=actual_strength, seed=self.generator.seed)
+            distorted = registry.apply(
+                name, distorted, strength=actual_strength, seed=self.generator.seed
+            )
 
         return {"pixel_values": distorted, "labels": labels}

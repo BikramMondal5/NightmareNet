@@ -13,6 +13,7 @@ import math
 import os
 import signal
 import threading
+from dataclasses import dataclass
 from typing import Any, Callable, Optional
 
 import torch
@@ -55,9 +56,6 @@ _MODEL_TYPE_MAP = {
     "masked_lm": AutoModelForMaskedLM,
     "seq_classification": AutoModelForSequenceClassification,
 }
-
-
-from dataclasses import dataclass
 
 @dataclass
 class ModelOutput:
@@ -223,7 +221,8 @@ class Trainer:
                 model_cls = _MODEL_TYPE_MAP.get(self.model_type)
                 if model_cls is None:
                     raise ValueError(
-                        f"Unknown model type '{self.model_type}'. Supported: {list(_MODEL_TYPE_MAP)}"
+                        f"Unknown model type '{self.model_type}'. "
+                        f"Supported: {list(_MODEL_TYPE_MAP)}"
                     )
                 try:
                     kwargs = {}

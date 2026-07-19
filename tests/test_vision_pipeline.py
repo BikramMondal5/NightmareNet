@@ -1,6 +1,5 @@
 """Integration test for the computer vision sleep-cycle pipeline."""
 
-import pytest
 from nightmarenet.pipeline import Pipeline, PipelineStatus
 
 
@@ -51,7 +50,8 @@ def test_full_vision_pipeline_cycle():
 
     # 1. Ingest (mock CIFAR-10 download to force fallback to FakeData immediately)
     from unittest.mock import patch
-    with patch("torchvision.datasets.CIFAR10", side_effect=Exception("Mock network download failure")):
+    side_effect = Exception("Mock network download failure")
+    with patch("torchvision.datasets.CIFAR10", side_effect=side_effect):
         pipe.ingest()
     assert pipe.metrics.status == PipelineStatus.INGESTING
 

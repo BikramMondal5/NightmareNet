@@ -86,25 +86,25 @@ def quick_robustness_score(
     """
     if len(base_dataset) == 0:
         return 0.0
-    
+
     is_vision = tokenizer is None or not hasattr(base_dataset, "map")
     if is_vision:
         try:
             indices = list(range(min(subset_size, len(base_dataset))))
             subset = torch.utils.data.Subset(base_dataset, indices)
-            
+
             class DummyGenerator:
                 def __init__(self, strength, seed, config):
                     self.strength = strength
                     self.seed = seed
                     self.config = config
                     self.target_model = model
-            
+
             from nightmarenet.data.generator import DistortedVisionDataset
             dummy_gen = DummyGenerator(strength, seed=42, config={})
             distorted_ds = DistortedVisionDataset(subset, dummy_gen, phase="dream")
             dataloader = DataLoader(distorted_ds, batch_size=batch_size, shuffle=False)
-            
+
             metrics = classification_metrics(model, dataloader, device)
             return metrics.get("accuracy", 0.0)
         except Exception as e:

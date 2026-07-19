@@ -402,8 +402,16 @@ class Evaluator:
                 else:
                     baseline_perplexities = baseline.get("perplexities", [])
                     trained_perplexities = trained.get("perplexities", [])
-                    baseline_scores = [1.0 / max(p, 1e-8) for p in baseline_perplexities] if baseline_perplexities else []
-                    trained_scores = [1.0 / max(p, 1e-8) for p in trained_perplexities] if trained_perplexities else []
+                    baseline_scores = (
+                        [1.0 / max(p, 1e-8) for p in baseline_perplexities]
+                        if baseline_perplexities
+                        else []
+                    )
+                    trained_scores = (
+                        [1.0 / max(p, 1e-8) for p in trained_perplexities]
+                        if trained_perplexities
+                        else []
+                    )
                 if baseline_scores and trained_scores:
                     significance = _bootstrap_ci(
                         baseline_scores,

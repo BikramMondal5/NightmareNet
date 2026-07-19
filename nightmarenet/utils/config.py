@@ -233,7 +233,7 @@ def validate_config(config: dict) -> list[str]:
         List of validation error messages (empty if valid).
     """
     errors = []
-    
+
     model_type = _get_nested(config, "model.type")
     if model_type != "image_classification":
         if _get_nested(config, "model.max_length") is None:
