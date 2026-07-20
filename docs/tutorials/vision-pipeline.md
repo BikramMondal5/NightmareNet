@@ -35,7 +35,7 @@ NightmareNet supports two phases of vision distortions:
 
 All vision distortions operate on PyTorch tensors representing images scaled in the range $[0.0, 1.0]$ with shape `(channels, height, width)`.
 
-NightmareNet provides utility functions in [utils.py](file:///c:/Codes/NightmareNet/nightmarenet/distortions/vision/utils.py) for easy conversions:
+NightmareNet provides utility functions in [utils.py](../../nightmarenet/distortions/vision/utils.py) for easy conversions:
 
 ```python
 from PIL import Image

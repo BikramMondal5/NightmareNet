@@ -41,7 +41,7 @@ Here is a definition and breakdown of the five primary metrics calculated by the
 
 ## 2. EU AI Act Article 15 Compliance Reports
 
-Article 15 of the **EU AI Act** mandates that high-risk AI systems demonstrate adequate robustness, accuracy, and cybersecurity. NightmareNet provides an automated reporting module ([report.py](file:///c:/Codes/NightmareNet/nightmarenet/compliance/report.py)) that produces compliance reports as signed Markdown and JSON files.
+Article 15 of the **EU AI Act** mandates that high-risk AI systems demonstrate adequate robustness, accuracy, and cybersecurity. NightmareNet provides an automated reporting module ([report.py](../../nightmarenet/compliance/report.py)) that produces compliance reports as signed Markdown and JSON files.
 
 ### Enabling Compliance Reports
 

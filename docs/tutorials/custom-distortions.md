@@ -17,7 +17,7 @@ All text distortions are registered with the **Distortion Registry**. The regist
 
 ## 2. Base Classes and Contracts
 
-Every distortion engine in NightmareNet must conform to the contract defined by the `BaseDistortion` class in [base.py](file:///c:/Codes/NightmareNet/nightmarenet/distortions/base.py).
+Every distortion engine in NightmareNet must conform to the contract defined by the `BaseDistortion` class in [base.py](../../nightmarenet/distortions/base.py).
 
 ### The Distortion Contract
 
