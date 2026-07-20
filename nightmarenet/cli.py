@@ -112,6 +112,10 @@ def cmd_evaluate(args: argparse.Namespace) -> int:
 
         _check_textattack_available()
 
+        if not model_name:
+            print("Error: --model is required when using --attacks", file=sys.stderr)
+            return 1
+
         from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
         if not json_only:

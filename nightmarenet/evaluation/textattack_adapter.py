@@ -47,19 +47,19 @@ def get_recipe(attack_name: str, model_wrapper: Any) -> Any:
     """
     _check_textattack_available()
 
-    from textattack.attack_recipes import (
-        BERTAttackLi2020,
-        PWWSRen2019,
-        TextBuggerLi2018,
-        TextFoolerJin2019,
-    )
-
     name = attack_name.lower()
     if name not in ATTACK_RECIPES:
         raise ValueError(
             f"Unsupported attack: {attack_name!r}. "
             f"Supported: {list(ATTACK_RECIPES.keys())}"
         )
+
+    from textattack.attack_recipes import (
+        BERTAttackLi2020,
+        PWWSRen2019,
+        TextBuggerLi2018,
+        TextFoolerJin2019,
+    )
 
     recipes = {
         "textfooler": TextFoolerJin2019,
@@ -165,9 +165,13 @@ def run_textattack_evaluation(
                 else 0.0
             )
 
+            non_skipped = [
+                r for r in attack_results
+                if not isinstance(r, textattack.attack_results.SkippedAttackResult)
+            ]
             avg_queries = (
-                sum(r.num_queries for r in attack_results) / len(attack_results)
-                if attack_results
+                sum(r.num_queries for r in non_skipped) / len(non_skipped)
+                if non_skipped
                 else 0.0
             )
 

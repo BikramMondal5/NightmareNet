@@ -231,6 +231,7 @@ Measured on RTX 3050 Ti (4 GB VRAM), DistilBERT-base-uncased, 500 train / 200 ev
 
 
 ### Measured Benchmarks (v1)
+
 | Model | Method | Clean Acc | TextFooler Acc | BertAttack Acc | Robustness Score | Params |
 |-------|--------|-----------|----------------|----------------|------------------|--------|
 | DistilBERT | Standard FT (baseline) | 90.5% | 23.1% | 17.6% | 0.412 | 66.0M |
@@ -475,6 +476,7 @@ model_dir = pull_model(
     local_dir="./models/hardened-robust-model"
 )
 print(f"Model successfully loaded at: {model_dir}")
+```
 
 ---
 
